@@ -18,5 +18,5 @@ export type { LinePattern, LinesConfig } from './lines.js';
 export type { VisualConfig, AssetsPatch } from './visual.js';
 
 // SpinPacket
-export type { SettlementMeta, SpinPacket } from './spin-packet.js';
+export type { WinningLine, SettlementMeta, SpinPacket } from './spin-packet.js';
 

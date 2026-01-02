@@ -4,19 +4,26 @@ import type { VisualConfig } from './visual.js';
 import type { AssetsPatch } from './visual.js';
 
 /**
+ * WinningLine 中獎線資訊
+ */
+export interface WinningLine {
+  lineIndex: number;
+  positions: [number, number][];  // [col, row]
+  symbol: SymbolId;
+  count: number;
+  payout: number;  // 這條線的分數
+}
+
+/**
  * SettlementMeta 結算資訊
- * 包含 Outcome ID、獲勝金額、倍率與最佳線條
+ * 包含 Outcome ID、獲勝金額、倍率與所有中獎線
  */
 export interface SettlementMeta {
   outcomeId: string;
-  win: number;
-  multiplier: number;
-  bestLine?: {
-    lineIndex: number;
-    positions: [number, number][];  // [col, row]
-    symbol: SymbolId;
-    count: number;
-  };
+  win: number;  // 所有中獎線的總分
+  multiplier: number;  // 此階段 multiplier = win
+  winningLines: WinningLine[];  // 所有中獎線
+  bestLine?: WinningLine;  // 最高分那條線
 }
 
 /**

@@ -145,25 +145,25 @@ export class PoolBuilder {
   }
 
   /**
-   * 計算盤面分數（best-line 概念）
-   * 遍歷所有線，返回最高分
+   * 計算盤面分數（所有中獎線的總分）
+   * 遍歷所有線，累加所有中獎線的 payout
    */
   private calculateBoardScore(board: Board): number {
     const patterns = this.linesManager.getAllPatterns();
-    let maxScore = 0;
+    let totalScore = 0;
 
     for (const pattern of patterns) {
       // 計算這條線的連續符號數
       const lineResult = this.calculateLineMatch(board, pattern.positions);
 
       if (lineResult) {
-        // 取得這條線的分數
-        const score = this.symbolManager.getPayout(lineResult.symbol, lineResult.count);
-        maxScore = Math.max(maxScore, score);
+        // 取得這條線的分數並累加
+        const payout = this.symbolManager.getPayout(lineResult.symbol, lineResult.count);
+        totalScore += payout;
       }
     }
 
-    return maxScore;
+    return totalScore;
   }
 
   /**
