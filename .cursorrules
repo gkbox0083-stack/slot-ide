@@ -1,0 +1,60 @@
+# slot-ide Cursor Rules
+
+## 專案背景
+這是 slot-ide 專案，一個單頁 Slot IDE + 內建 Runtime Renderer。
+
+## 必讀文件
+每次開始任務前，請先閱讀：
+1. AI_GUIDE.md — 專案指南
+2. SYSTEM_PROMPT.md — 行為憲法
+3. README_ARCHITECTURE.md — 架構北極星
+4. P0_GATE.md — 不可變條件（每次 commit 前檢查）
+
+## 開發流程
+```
+Feature 開發 → Cursor 實作 → Acceptance Checklist → P0 Gate → 穩定性驗證 → Release
+```
+
+## 核心原則
+
+### 架構約束
+- 單一 Vite + React App
+- 禁止 iframe / postMessage
+- Math Engine 是唯一真相來源
+- SpinPacket 是唯一資料合約
+- Runtime 只負責渲染，不生成邏輯
+
+### 行為約束
+- 每次只做一件事
+- 只修改指定範圍的檔案
+- diff 最小化、可回退
+- 禁止「順便優化」
+- 禁止自行發明架構
+
+### 資料流
+Math Engine → SpinPacket → Runtime Renderer
+
+## 型別位置
+- 所有型別定義在 `src/types/`
+- SpinPacket 是核心合約，不可擅自修改
+
+## 禁止事項（P0 紅線）
+- 禁止新增第二套 RNG
+- 禁止新增第二套資料合約
+- 禁止建立第二個專案
+- 禁止使用 iframe
+- 禁止做「暫時版本」
+
+## 每次 commit 前自問（P0 Gate）
+1. 這次改動是否符合 SYSTEM_PROMPT？
+2. 是否產生了第二套邏輯？
+3. diff 是否最小化？
+4. 是否只修改了指定範圍？
+5. `npm run build` 是否成功？
+6. 是否有遺留 any 或 TODO？
+
+## 失敗處理
+如果發現實作會導致 P0 Gate 失敗：
+1. 停止實作
+2. 回報問題
+3. 等待人類決策

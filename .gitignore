@@ -1,0 +1,67 @@
+# slot-ide .gitignore
+
+# ===== 依賴 =====
+node_modules/
+.pnp/
+.pnp.js
+
+# ===== 建置產物 =====
+dist/
+build/
+*.local
+
+# ===== 快取 =====
+.cache/
+.parcel-cache/
+.vite/
+*.tsbuildinfo
+
+# ===== 編輯器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== 系統檔案 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 環境變數（隱私）=====
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ===== 日誌 =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== 測試覆蓋率 =====
+coverage/
+.nyc_output/
+
+# ===== 暫存檔 =====
+*.tmp
+*.temp
+*.bak
+
+# ===== 使用者上傳素材（本地測試用）=====
+# 這些是使用者上傳的圖片，不應進版控
+uploads/
+assets/user/
+
+# ===== Cursor / AI 工具 =====
+.cursor/
+.aider*
+.continue/
+
+# ===== 其他 =====
+*.tgz
+.eslintcache
