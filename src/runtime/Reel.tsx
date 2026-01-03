@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { SymbolId } from '../types/board.js';
 import type { AssetsPatch } from '../types/visual.js';
 import { Symbol } from './Symbol.js';
@@ -10,7 +10,7 @@ export interface ReelProps {
   symbols: SymbolId[];          // 最終要顯示的 3 個符號
   assets?: AssetsPatch;         // 素材覆蓋
   animation: {
-    spinSpeed: number;          // 滾輪轉速 (px/frame 概念)
+    spinSpeed: number;          // 滾輪轉速
     spinDuration: number;       // 旋轉時長 (ms)
     easeStrength: number;       // 緩停力度 (0-1)
     bounceStrength: number;     // 回彈力度 (0-1)
@@ -31,12 +31,12 @@ const DEFAULT_SYMBOL_IDS: SymbolId[] = ['H1', 'H2', 'H3', 'L1', 'L2', 'L3', 'L4'
  * 生成假符號列表（用於 spinning 階段）
  */
 function generateDummySymbols(count: number = 30): SymbolId[] {
-  const symbols: SymbolId[] = [];
+  const result: SymbolId[] = [];
   for (let i = 0; i < count; i++) {
     const randomIndex = Math.floor(Math.random() * DEFAULT_SYMBOL_IDS.length);
-    symbols.push(DEFAULT_SYMBOL_IDS[randomIndex]);
+    result.push(DEFAULT_SYMBOL_IDS[randomIndex]);
   }
-  return symbols;
+  return result;
 }
 
 /**
@@ -53,180 +53,177 @@ export function Reel({
   highlightedRows = [],
   onStopped,
 }: ReelProps) {
+  // 狀態
   const [offset, setOffset] = useState(0);
-  const animationFrameRef = useRef<number | null>(null);
+  const [isStopping, setIsStopping] = useState(false);
+  const [transitionStyle, setTransitionStyle] = useState('none');
+  const [showFinalSymbols, setShowFinalSymbols] = useState(true);
+
+  // Refs
+  const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  const transitionEndHandlerRef = useRef<(() => void) | null>(null);
-  const stoppingOffsetRef = useRef<number>(0); // 保存進入 stopping 時的 offset
+  const currentOffsetRef = useRef(0);
+  const dummySymbolsRef = useRef<SymbolId[]>(generateDummySymbols(30));
+  const prevStateRef = useRef<string>(state);
 
-  // 生成假符號列表（約 30 個，複製 5 份確保無縫滾動）
-  const dummySymbols = useRef<SymbolId[]>(generateDummySymbols(30));
-  const symbolCount = dummySymbols.current.length;
-  const copies = 5; // 複製份數（可見 3 個 + 上下緩衝）
+  // 常數
   const symbolHeight = symbolSize * symbolScale;
-  const totalCycleHeight = symbolHeight * symbolCount * copies; // 統一的循環高度
+  const dummyIconsCount = 30; // 假符號單個週期圖示數
+  const finalIconsCount = symbols.length; // 最終符號數量（3）
+  const copies = 15; // 副本數量
 
-  // spinning 階段的動畫循環
-  useEffect(() => {
-    if (state !== 'spinning') {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-      return;
-    }
+  // 分別計算假符號和最終符號的循環高度和基準偏移
+  const dummyCycleHeight = symbolHeight * dummyIconsCount;
+  const finalCycleHeight = symbolHeight * finalIconsCount;
+  const dummyBaseTranslate = -(dummyCycleHeight * Math.floor(copies / 2));
+  const finalBaseTranslate = -(finalCycleHeight * Math.floor(copies / 2));
 
-    // 重置假符號列表
-    dummySymbols.current = generateDummySymbols(30);
-    
-    // 重置 offset
-    setOffset(0);
+  // 根據當前顯示的符號列表選擇對應的 baseTranslate
+  const baseTranslate = showFinalSymbols ? finalBaseTranslate : dummyBaseTranslate;
+
+  // 開始滾動
+  const startSpin = useCallback(() => {
     startTimeRef.current = performance.now();
 
     const animate = () => {
-      if (state !== 'spinning') {
-        return;
-      }
-
       const now = performance.now();
       const elapsed = now - (startTimeRef.current || now);
-      
-      // 計算 offset（使用取模避免數值膨脹）
-      const newOffset = (elapsed * animation.spinSpeed) % totalCycleHeight;
+      const speed = animation.spinSpeed * 0.15;
+
+      // 使用假符號的 cycleHeight
+      const newOffset = (elapsed * speed) % dummyCycleHeight;
+
+      currentOffsetRef.current = newOffset;
       setOffset(newOffset);
-
-      animationFrameRef.current = requestAnimationFrame(animate);
+      requestRef.current = requestAnimationFrame(animate);
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    requestRef.current = requestAnimationFrame(animate);
+  }, [animation.spinSpeed, dummyCycleHeight]);
 
-    return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [state, animation.spinSpeed, symbolHeight, totalCycleHeight]);
+  // 停止滾動（觸發減速動畫）
+  const handleStopTrigger = useCallback(() => {
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+      requestRef.current = null;
+    }
 
-  // stopping 階段：計算最終位置並使用 CSS transition
+    const currentPos = currentOffsetRef.current;
+    const speedPxPerMs = animation.spinSpeed * 0.15;
+
+    // 計算減速距離
+    const stopDuration = 0.5 + (animation.easeStrength * 1.0);
+    const rawDistance = speedPxPerMs * (stopDuration * 1000) * 0.7;
+
+    // 確保至少轉兩圈以上才有動感（使用假符號的 cycleHeight）
+    const minDistance = dummyCycleHeight * 2;
+    const targetDistance = Math.max(rawDistance, minDistance);
+
+    // 計算目標座標並對齊到格子
+    const rawTarget = currentPos + targetDistance;
+    const finalTarget = Math.ceil(rawTarget / symbolHeight) * symbolHeight;
+
+    // cubic-bezier 曲線計算
+    const p1x = 0.1;
+    const p1y = 0.5 + (animation.easeStrength * 0.3);
+    const p2x = 0.2 + (animation.bounceStrength * 0.1);
+    const p2y = 1 + (animation.bounceStrength * 0.6);
+    const bezierCurve = `cubic-bezier(${p1x}, ${p1y}, ${p2x}, ${p2y})`;
+
+    // 先切換至靜止座標，清除任何殘留動畫
+    setIsStopping(false);
+    setOffset(currentPos);
+
+    // 強制重繪後套用過渡動畫 (Reflow Reset)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsStopping(true);
+        setTransitionStyle(`transform ${stopDuration}s ${bezierCurve}`);
+        setOffset(finalTarget);
+      });
+    });
+  }, [animation.spinSpeed, animation.easeStrength, animation.bounceStrength, symbolHeight, dummyCycleHeight]);
+
+  // 處理 transition 結束
+  const handleTransitionEnd = useCallback(() => {
+    if (!isStopping) return;
+
+    setIsStopping(false);
+    setTransitionStyle('none');
+    setShowFinalSymbols(true);
+    setOffset(0);
+    currentOffsetRef.current = 0;
+
+    if (onStopped) {
+      onStopped();
+    }
+  }, [isStopping, onStopped]);
+
+  // 監聽 state 變化
   useEffect(() => {
-    if (state !== 'stopping') {
-      return;
-    }
+    const prevState = prevStateRef.current;
+    prevStateRef.current = state;
 
-    // 停止 requestAnimationFrame
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // 保存進入 stopping 時的 offset
-    stoppingOffsetRef.current = offset;
-
-    // 計算目標位置：對齊到顯示最終符號的位置
-    // 目標是讓第一個符號在可見區域的第一個位置
-    // 由於最終符號列表只有 3 個符號（複製 5 份），我們需要對齊到第一個符號的位置
-    const targetOffset = symbolHeight * 1; // 第一個符號在可見區域的第一個位置
-    
-    // 計算從當前位置到目標位置的距離
-    // 需要考慮減速距離，所以目標位置應該稍微超過
-    // 確保 currentOffset 在 totalCycleHeight 範圍內
-    const currentOffset = stoppingOffsetRef.current % totalCycleHeight;
-    const distanceToTarget = targetOffset - (currentOffset % symbolHeight);
-    
-    // 如果距離太短，增加一個循環的距離
-    const adjustedDistance = distanceToTarget < symbolHeight * 2 
-      ? distanceToTarget + symbolHeight * symbolCount 
-      : distanceToTarget;
-    
-    // 計算減速距離（根據 easeStrength）
-    const decelerationDistance = symbolHeight * (1 + animation.easeStrength * 2);
-    const finalOffset = currentOffset + adjustedDistance + decelerationDistance;
-
-    // 設定 CSS transition
-    const strip = stripRef.current;
-    if (strip) {
-      // 先設定當前位置（不使用 transition）
-      strip.style.transition = 'none';
-      strip.style.transform = `translateY(-${currentOffset}px)`;
-      
-      // 強制重排以確保位置更新
-      strip.offsetHeight;
-      
-      // 計算 cubic-bezier 參數
-      // p2y = 1 + (bounceStrength * 0.6) 實現回彈效果
-      const p2y = 1 + (animation.bounceStrength * 0.6);
-      const cubicBezier = `cubic-bezier(0.25, 0.1, ${animation.easeStrength}, ${p2y})`;
-      
-      // 設定 transition 並移動到最終位置
-      strip.style.transition = `transform 0.8s ${cubicBezier}`;
-      strip.style.transform = `translateY(-${finalOffset}px)`;
-      
-      // 監聽 transition 結束
-      transitionEndHandlerRef.current = () => {
-        if (strip) {
-          strip.style.transition = '';
-          // 確保最終位置對齊到目標位置
-          strip.style.transform = `translateY(-${targetOffset}px)`;
-        }
-        if (onStopped) {
-          onStopped();
-        }
-      };
-      
-      strip.addEventListener('transitionend', transitionEndHandlerRef.current);
-    }
-
-    return () => {
-      if (strip && transitionEndHandlerRef.current) {
-        strip.removeEventListener('transitionend', transitionEndHandlerRef.current);
-      }
-    };
-  }, [state, offset, symbolHeight, totalCycleHeight, symbolCount, symbols, animation.easeStrength, animation.bounceStrength, onStopped]);
-
-  // stopped 狀態：確保顯示最終符號
-  useEffect(() => {
-    if (state === 'stopped') {
-      setOffset(symbolHeight * 1); // 對齊到第一個符號位置
-    }
-  }, [state, symbolHeight]);
-
-  // idle 狀態：顯示靜止符號
-  useEffect(() => {
-    if (state === 'idle') {
+    if (state === 'spinning' && prevState !== 'spinning') {
+      // 進入 spinning 狀態
+      setShowFinalSymbols(false);
+      setIsStopping(false);
+      setTransitionStyle('none');
       setOffset(0);
-    }
-  }, [state]);
+      currentOffsetRef.current = 0;
+      dummySymbolsRef.current = generateDummySymbols(30);
+      startSpin();
 
-  // 構建符號列表（spinning 時使用假符號，其他狀態使用最終符號）
-  const renderSymbols = () => {
-    if (state === 'spinning') {
-      // spinning 時渲染多副本假符號
-      const allSymbols: SymbolId[] = [];
-      for (let i = 0; i < copies; i++) {
-        allSymbols.push(...dummySymbols.current);
-      }
-      return allSymbols;
-    } else {
-      // 其他狀態使用最終符號，但需要足夠的副本以確保渲染正常
-      const allSymbols: SymbolId[] = [];
-      for (let i = 0; i < 5; i++) {
-        allSymbols.push(...symbols);
-      }
-      return allSymbols;
-    }
-  };
+    } else if (state === 'stopping' && prevState === 'spinning') {
+      // 從 spinning 進入 stopping 狀態
+      handleStopTrigger();
 
-  const symbolList = renderSymbols();
-  // transform 在 stopping 階段由 CSS transition 控制，不需要在這裡設定
-  const currentTransform = state === 'spinning' 
-    ? `translateY(-${offset}px)`
-    : state === 'stopping'
-    ? undefined // 由 CSS transition 控制（在 useEffect 中設定）
-    : state === 'stopped'
-    ? `translateY(-${symbolHeight * 1}px)`
-    : `translateY(0px)`;
+    } else if (state === 'stopped') {
+      // 進入 stopped 狀態
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = null;
+      }
+
+      setShowFinalSymbols(true);
+      setIsStopping(false);
+      setTransitionStyle('none');
+      setOffset(0);
+      currentOffsetRef.current = 0;
+
+    } else if (state === 'idle') {
+      // 進入 idle 狀態
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = null;
+      }
+
+      setShowFinalSymbols(true);
+      setIsStopping(false);
+      setTransitionStyle('none');
+      setOffset(0);
+      currentOffsetRef.current = 0;
+    }
+
+    return () => {
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+        requestRef.current = null;
+      }
+    };
+  }, [state, startSpin, handleStopTrigger]);
+
+  // 構建符號列表
+  const symbolList = showFinalSymbols
+    ? Array(copies).fill(symbols).flat()
+    : Array(copies).fill(dummySymbolsRef.current).flat();
+
+  // 計算 transform
+  const currentTransform = `translate3d(0, ${baseTranslate + offset}px, 0)`;
+
+  // 計算當前符號列表中可見區域的起始索引
+  const currentIconsCount = showFinalSymbols ? finalIconsCount : dummyIconsCount;
+  const middleStart = Math.floor(copies / 2) * currentIconsCount;
 
   return (
     <div
@@ -241,42 +238,29 @@ export function Reel({
     >
       {/* 符號長條 */}
       <div
-        ref={stripRef}
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
           width: '100%',
-          ...(currentTransform !== undefined && { transform: currentTransform }),
-          transition: state === 'stopping' ? undefined : 'none',
+          transform: currentTransform,
+          transition: isStopping ? transitionStyle : 'none',
         }}
+        onTransitionEnd={handleTransitionEnd}
       >
         {symbolList.map((symbolId, index) => {
-          // 計算該符號在可見區域的行索引（0, 1, 2）
-          let rowIndex = -1;
-          
-          if (state === 'stopped') {
-            // stopped 狀態：transform 是 translateY(-symbolHeight * 1)
-            // 第一個可見符號在 index 1（在 symbols 列表中的位置）
-            // 由於 symbols 只有 3 個，複製了 5 份，所以：
-            // - 第一個可見符號在 index 1, 4, 7, 10...（每 3 個一組，每組的第一個）
-            // - 第二個可見符號在 index 2, 5, 8, 11...（每 3 個一組，每組的第二個）
-            // - 第三個可見符號在 index 3, 6, 9, 12...（每 3 個一組，每組的第三個）
-            if (index >= 1) {
-              const relativeIndex = (index - 1) % 3;
-              if (relativeIndex >= 0 && relativeIndex < 3) {
-                rowIndex = relativeIndex;
-              }
+          // 計算該符號是否應該高亮
+          let isHighlighted = false;
+
+          if (state === 'stopped' && showFinalSymbols) {
+            // offset = 0 時，可見區域從 middleStart 開始
+            const visibleIndex = index - middleStart;
+
+            if (visibleIndex >= 0 && visibleIndex < 3) {
+              isHighlighted = highlightedRows.includes(visibleIndex);
             }
-          } else if (state === 'idle') {
-            // idle 狀態：transform 是 translateY(0)
-            // 第一個可見符號在 index 0
-            rowIndex = index % 3;
           }
-          // spinning/stopping 狀態：不顯示高亮（rowIndex = -1）
-          
-          const isHighlighted = rowIndex >= 0 && rowIndex < 3 && highlightedRows.includes(rowIndex) && state === 'stopped';
-          
+
           return (
             <div
               key={`${symbolId}-${index}`}
@@ -299,8 +283,8 @@ export function Reel({
           );
         })}
       </div>
-      
-      {/* 上下漸層遮罩（可選） */}
+
+      {/* 上下漸層遮罩 */}
       <div
         style={{
           position: 'absolute',
@@ -308,7 +292,7 @@ export function Reel({
           left: 0,
           right: 0,
           height: `${symbolHeight * 0.5}px`,
-          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.3), transparent)',
+          background: 'linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent)',
           pointerEvents: 'none',
         }}
       />
@@ -319,11 +303,10 @@ export function Reel({
           left: 0,
           right: 0,
           height: `${symbolHeight * 0.5}px`,
-          background: 'linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent)',
+          background: 'linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent)',
           pointerEvents: 'none',
         }}
       />
     </div>
   );
 }
-
