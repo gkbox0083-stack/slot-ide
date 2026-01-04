@@ -126,7 +126,7 @@ src/runtime/
 
 ---
 
-## Phase 4：IDE 介面串接 🔄
+## Phase 4：IDE 介面串接 ✅
 
 ### 目標
 將 Math Engine 與 Runtime 串接到正式 IDE UI
@@ -153,34 +153,34 @@ src/store/
 ### 子任務分解
 | Prompt | 目標 | 狀態 |
 |--------|------|------|
-| 4-1 | IDE 佈局骨架 + Store 基礎 | ⏳ 待開始 |
-| 4-2 | ControlPanel 實作 | ⏳ 待開始 |
-| 4-3 | OutcomePanel 實作 | ⏳ 待開始 |
-| 4-4 | SymbolPanel 實作 | ⏳ 待開始 |
-| 4-5 | AnimationPanel + LayoutPanel | ⏳ 待開始 |
-| 4-6 | 整合驗證 | ⏳ 待開始 |
+| 4-1 | IDE 佈局骨架 + Store 基礎 | ✅ 完成 |
+| 4-2 | ControlPanel 實作 | ✅ 完成 |
+| 4-3 | OutcomePanel 實作 | ✅ 完成 |
+| 4-4 | SymbolPanel 實作 | ✅ 完成 |
+| 4-5 | AnimationPanel + LayoutPanel | ✅ 完成 |
+| 4-6 | 整合驗證 | ✅ 完成 |
 
 ### 交付物
-- [ ] IDE 佈局（左側 Runtime + 右側面板）
-- [ ] Tab 切換（數學 / 視覺 / 控制）
-- [ ] GameParamsPanel（Base Bet 設定）
-- [ ] OutcomePanel（Outcome CRUD）
-- [ ] SymbolPanel（Symbol 編輯）
-- [ ] LinesPanel（Lines 設定）
-- [ ] AnimationPanel（5 個動畫參數）
-- [ ] LayoutPanel（3 個盤面視覺參數）
-- [ ] ControlPanel（Build Pools / Spin）
-- [ ] Store 狀態管理
+- [x] IDE 佈局（左側 Runtime + 右側面板）
+- [x] Tab 切換（數學 / 視覺 / 控制）
+- [x] GameParamsPanel（Base Bet 設定）
+- [x] OutcomePanel（Outcome CRUD）
+- [x] SymbolPanel（Symbol 編輯）
+- [x] LinesPanel（Lines 設定）
+- [x] AnimationPanel（5 個動畫參數）
+- [x] LayoutPanel（3 個盤面視覺參數）
+- [x] ControlPanel（Build Pools / Spin）
+- [x] Store 狀態管理
 
 ### 驗收條件
-- [ ] 點擊 Spin → 動畫正確播放
-- [ ] 調整動畫參數 → 即時反映
-- [ ] 調整數學參數 → 重新 Build Pools 後生效
-- [ ] 資料流符合 Math → SpinPacket → Runtime
+- [x] 點擊 Spin → 動畫正確播放
+- [x] 調整動畫參數 → 即時反映
+- [x] 調整數學參數 → 重新 Build Pools 後生效
+- [x] 資料流符合 Math → SpinPacket → Runtime
 
 ---
 
-## Phase 5：Simulation 與 Analytics
+## Phase 5：Simulation 與 Analytics ✅
 
 ### 目標
 實作批次模擬與統計分析
@@ -195,19 +195,19 @@ src/analytics/
 ```
 
 ### 交付物
-- [ ] N 次 Spin 批次執行
-- [ ] RTP / HitRate / AvgWin 計算
-- [ ] 圖表顯示（折線圖、離散圖）
-- [ ] CSV 匯出
+- [x] N 次 Spin 批次執行
+- [x] RTP / HitRate / AvgWin 計算
+- [x] 圖表顯示（折線圖、離散圖）
+- [x] CSV 匯出
 
 ### 驗收條件
-- Simulation 使用 Math Engine 的 spin（非另起邏輯）
-- 統計數據正確
-- CSV 可下載
+- [x] Simulation 使用 Math Engine 的 spin（非另起邏輯）
+- [x] 統計數據正確
+- [x] CSV 可下載
 
 ---
 
-## Phase 6：素材與完善
+## Phase 6：素材與完善 🔄
 
 ### 目標
 完成素材上傳與最終打磨
@@ -216,17 +216,19 @@ src/analytics/
 ```
 src/ide/panels/AssetPanel.tsx
 src/runtime/Symbol.tsx
+src/utils/asset-storage.ts
 ```
 
 ### 交付物
 - [ ] Symbol 圖片上傳（與 Symbol 種類連動）
 - [ ] 盤面底圖 / 框架 / 背景 / 人物上傳
 - [ ] 素材即時反映到 Runtime
+- [ ] localStorage 持久化儲存
 
 ### 驗收條件
-- 上傳素材後立即顯示
-- 素材儲存於 localStorage
-- 完整產品可獨立運作
+- [ ] 上傳素材後立即顯示
+- [ ] 素材儲存於 localStorage
+- [ ] 完整產品可獨立運作
 
 ---
 
@@ -238,9 +240,9 @@ src/runtime/Symbol.tsx
 | 1 | 型別定義與專案初始化 | ✅ 完成 |
 | 2 | Math Engine 核心 | ✅ 完成 |
 | 3 | Runtime Renderer | ✅ 完成 |
-| 4 | IDE 介面串接 | 🔄 進行中 |
-| 5 | Simulation 與 Analytics | ⏳ 待開始 |
-| 6 | 素材與完善 | ⏳ 待開始 |
+| 4 | IDE 介面串接 | ✅ 完成 |
+| 5 | Simulation 與 Analytics | ✅ 完成 |
+| 6 | 素材與完善 | 🔄 進行中 |
 
 ---
 

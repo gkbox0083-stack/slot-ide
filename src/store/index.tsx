@@ -16,7 +16,7 @@ export interface IDEState {
   isSpinning: boolean;
   
   // === UI 狀態 ===
-  activeTab: 'math' | 'visual' | 'control';
+  activeTab: 'math' | 'visual' | 'control' | 'assets';
   
   // === 遊戲參數 ===
   baseBet: number;
@@ -44,7 +44,7 @@ export type IDEAction =
   | { type: 'SET_POOLS_BUILT'; payload: { status: PoolStatus[] } }
   | { type: 'SET_SPIN_PACKET'; payload: SpinPacket | null }
   | { type: 'SET_SPINNING'; payload: boolean }
-  | { type: 'SET_ACTIVE_TAB'; payload: 'math' | 'visual' | 'control' }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'math' | 'visual' | 'control' | 'assets' }
   | { type: 'SET_BASE_BET'; payload: number }
   | { type: 'SET_SIMULATION_COUNT'; payload: number }
   | { type: 'SET_SIMULATION_RESULT'; payload: SimulationResult | null }
@@ -52,7 +52,13 @@ export type IDEAction =
   | { type: 'SET_SIMULATION_PROGRESS'; payload: number }
   | { type: 'RESET_SIMULATION' }
   | { type: 'SET_VISUAL_CONFIG'; payload: VisualConfig }
-  | { type: 'SET_ASSETS'; payload: AssetsPatch };
+  | { type: 'SET_ASSETS'; payload: AssetsPatch }
+  | { type: 'SET_SYMBOL_IMAGE'; symbolId: string; dataUrl: string }
+  | { type: 'REMOVE_SYMBOL_IMAGE'; symbolId: string }
+  | { type: 'SET_OTHER_ASSET'; key: 'board' | 'frame' | 'background' | 'character'; dataUrl: string }
+  | { type: 'REMOVE_OTHER_ASSET'; key: 'board' | 'frame' | 'background' | 'character' }
+  | { type: 'CLEAR_ALL_ASSETS' }
+  | { type: 'LOAD_ASSETS'; assets: AssetsPatch };
 
 /**
  * 初始狀態
@@ -183,6 +189,60 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
       return {
         ...state,
         assets: action.payload,
+      };
+    
+    case 'SET_SYMBOL_IMAGE': {
+      const symbols = { ...state.assets.symbols };
+      symbols[action.symbolId] = action.dataUrl;
+      return {
+        ...state,
+        assets: {
+          ...state.assets,
+          symbols,
+        },
+      };
+    }
+    
+    case 'REMOVE_SYMBOL_IMAGE': {
+      const symbols = { ...state.assets.symbols };
+      delete symbols[action.symbolId];
+      return {
+        ...state,
+        assets: {
+          ...state.assets,
+          symbols: Object.keys(symbols).length > 0 ? symbols : undefined,
+        },
+      };
+    }
+    
+    case 'SET_OTHER_ASSET':
+      return {
+        ...state,
+        assets: {
+          ...state.assets,
+          [action.key]: action.dataUrl,
+        },
+      };
+    
+    case 'REMOVE_OTHER_ASSET': {
+      const newAssets = { ...state.assets };
+      delete newAssets[action.key];
+      return {
+        ...state,
+        assets: newAssets,
+      };
+    }
+    
+    case 'CLEAR_ALL_ASSETS':
+      return {
+        ...state,
+        assets: {},
+      };
+    
+    case 'LOAD_ASSETS':
+      return {
+        ...state,
+        assets: action.assets,
       };
     
     default:

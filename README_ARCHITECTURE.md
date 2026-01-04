@@ -91,7 +91,8 @@ slot-ide/
     │   └── index.ts
     │
     └── utils/               # 工具函式
-        └── index.ts
+        ├── index.ts
+        └── asset-storage.ts # 素材持久化
 ```
 
 ---
@@ -255,6 +256,7 @@ interface Pool {
 | **Runtime Renderer** | 播放動畫、渲染盤面 | 生成盤面、計算結果 |
 | **IDE UI** | 收集參數、觸發動作、顯示結果 | 直接修改 Engine 或 Renderer 內部狀態 |
 | **Analytics** | 批次呼叫 Engine、統計、匯出 | 自己實作 spin 邏輯 |
+| **Utils** | 純函式、localStorage 操作 | 依賴 React、修改 Store |
 
 ---
 

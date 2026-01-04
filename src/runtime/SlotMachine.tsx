@@ -298,61 +298,169 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       return getHighlightedRowsForReel(reelIndex, currentLine);
     };
 
-    const containerStyle: React.CSSProperties = {
+    // 計算尺寸
+    const symbolSize = 100;
+    const symbolHeight = symbolSize * visual.layout.symbolScale;
+    const reelWidth = symbolSize * visual.layout.symbolScale;
+    const reelGap = visual.layout.reelGap;
+    const boardWidth = (reelWidth * 5 + reelGap * 4) * visual.layout.boardScale;
+    const boardHeight = (symbolHeight * 3) * visual.layout.boardScale;
+
+    // 外層容器（包含背景）
+    const outerContainerStyle: React.CSSProperties = {
       position: 'relative',
-      transform: `scale(${visual.layout.boardScale})`,
-      transformOrigin: 'top left',
+      width: '100%',
+      height: '100%',
+      minHeight: boardHeight,
     };
 
-    const reelsContainerStyle: React.CSSProperties = {
-      display: 'flex',
-      gap: `${visual.layout.reelGap}px`,
-      position: 'relative',
-    };
-
-    const svgOverlayStyle: React.CSSProperties = {
+    // 背景層（z-index: 0）
+    const backgroundStyle: React.CSSProperties = {
       position: 'absolute',
       top: 0,
       left: 0,
       width: '100%',
       height: '100%',
-      pointerEvents: 'none',
-      zIndex: 10,
+      zIndex: 0,
+      backgroundImage: assets?.background ? `url(${assets.background})` : undefined,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
     };
 
-    // 計算 SVG 尺寸
-    const symbolSize = 100;
-    const symbolHeight = symbolSize * visual.layout.symbolScale;
-    const reelWidth = symbolSize * visual.layout.symbolScale;
-    const reelGap = visual.layout.reelGap;
-    const svgWidth = (reelWidth * 5 + reelGap * 4) * visual.layout.boardScale;
-    const svgHeight = (symbolHeight * 3) * visual.layout.boardScale;
+    // 盤面容器（包含 board 底圖和 reels）
+    const boardContainerStyle: React.CSSProperties = {
+      position: 'relative',
+      transform: `scale(${visual.layout.boardScale})`,
+      transformOrigin: 'top left',
+      width: boardWidth / visual.layout.boardScale,
+      height: boardHeight / visual.layout.boardScale,
+      zIndex: 2,
+    };
+
+    // 盤面底圖層（z-index: 1）
+    const boardImageStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 1,
+      backgroundImage: assets?.board ? `url(${assets.board})` : undefined,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    };
+
+    // Reels 容器（z-index: 2）
+    const reelsContainerStyle: React.CSSProperties = {
+      display: 'flex',
+      gap: `${visual.layout.reelGap}px`,
+      position: 'relative',
+      zIndex: 2,
+    };
+
+    // 盤面框層（z-index: 3）
+    const frameStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 3,
+      backgroundImage: assets?.frame ? `url(${assets.frame})` : undefined,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      pointerEvents: 'none',
+    };
+
+    // 人物層（z-index: 4）
+    const characterStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      width: 'auto',
+      height: '100%',
+      zIndex: 4,
+      display: assets?.character ? 'flex' : 'none',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      pointerEvents: 'none',
+    };
+
+    // 中獎線 SVG（z-index: 5）
+    const svgOverlayStyle: React.CSSProperties = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: boardWidth,
+      height: boardHeight,
+      pointerEvents: 'none',
+      zIndex: 5,
+    };
 
     return (
-      <div style={containerStyle}>
-        <div style={reelsContainerStyle}>
-          {board.reels.map((reelSymbols, reelIndex) => (
-            <Reel
-              key={reelIndex}
-              symbols={reelSymbols}
-              assets={assets}
-              animation={visual.animation}
-              symbolSize={symbolSize}
-              symbolScale={visual.layout.symbolScale}
-              state={reelStates[reelIndex]}
-              highlightedRows={getHighlightedRows(reelIndex)}
-              onStopped={() => handleReelStopped(reelIndex)}
-            />
-          ))}
+      <div style={outerContainerStyle}>
+        {/* 背景層（z-index: 0） */}
+        {assets?.background && (
+          <div style={backgroundStyle} />
+        )}
+
+        {/* 盤面容器 */}
+        <div style={boardContainerStyle}>
+          {/* 盤面底圖層（z-index: 1） */}
+          {assets?.board && (
+            <div style={boardImageStyle} />
+          )}
+
+          {/* Reels 容器（z-index: 2） */}
+          <div style={reelsContainerStyle}>
+            {board.reels.map((reelSymbols, reelIndex) => (
+              <Reel
+                key={reelIndex}
+                symbols={reelSymbols}
+                assets={assets}
+                animation={visual.animation}
+                symbolSize={symbolSize}
+                symbolScale={visual.layout.symbolScale}
+                state={reelStates[reelIndex]}
+                highlightedRows={getHighlightedRows(reelIndex)}
+                onStopped={() => handleReelStopped(reelIndex)}
+              />
+            ))}
+          </div>
+
+          {/* 盤面框層（z-index: 3） */}
+          {assets?.frame && (
+            <div style={frameStyle} />
+          )}
+
+          {/* 中獎線 SVG（z-index: 5） */}
+          <svg
+            style={svgOverlayStyle}
+            width={boardWidth}
+            height={boardHeight}
+            viewBox={`0 0 ${boardWidth} ${boardHeight}`}
+          >
+            {renderWinningLinePath()}
+          </svg>
         </div>
-        <svg
-          style={svgOverlayStyle}
-          width={svgWidth}
-          height={svgHeight}
-          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        >
-          {renderWinningLinePath()}
-        </svg>
+
+        {/* 人物層（z-index: 4） */}
+        {assets?.character && (
+          <div style={characterStyle}>
+            <img
+              src={assets.character}
+              alt="character"
+              style={{
+                maxHeight: '100%',
+                maxWidth: '40%',
+                objectFit: 'contain',
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   }

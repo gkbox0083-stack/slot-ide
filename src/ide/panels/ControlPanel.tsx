@@ -59,7 +59,8 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
 
     try {
       const visual = state.visualConfig;
-      const newSpinPacket = spinExecutor.spin(visual);
+      const assets = Object.keys(state.assets).length > 0 ? state.assets : undefined;
+      const newSpinPacket = spinExecutor.spin(visual, assets);
       
       dispatch({ type: 'SET_SPIN_PACKET', payload: newSpinPacket });
       dispatch({ type: 'SET_SPINNING', payload: true });
