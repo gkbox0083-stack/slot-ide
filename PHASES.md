@@ -1,7 +1,22 @@
-# slot-ide 開發階段規劃（Development Phases）
+# slot-ide 開發階段紀錄（Development Phases）
 
-本文件定義專案的分階段開發計畫。
-每個階段都有明確的範圍、交付物與驗收條件。
+> ✅ **MVP 完成** — 所有 6 個開發階段已全數完成（2025-01-04）
+
+本文件記錄專案的分階段開發過程，可作為後續專案的參考。
+
+---
+
+## 階段總覽
+
+| Phase | 名稱 | 狀態 | 完成日期 |
+|-------|------|------|----------|
+| 0 | 地基文件 | ✅ 完成 | 2025-01-02 |
+| 1 | 型別定義與專案初始化 | ✅ 完成 | 2025-01-02 |
+| 2 | Math Engine 核心 | ✅ 完成 | 2025-01-02 |
+| 3 | Runtime Renderer | ✅ 完成 | 2025-01-03 |
+| 4 | IDE 介面串接 | ✅ 完成 | 2025-01-03 |
+| 5 | Simulation 與 Analytics | ✅ 完成 | 2025-01-03 |
+| 6 | 素材管理系統 | ✅ 完成 | 2025-01-04 |
 
 ---
 
@@ -11,16 +26,18 @@
 建立專案基礎文件與資料夾結構
 
 ### 交付物
-- [x] AI_GUIDE.md
-- [x] SYSTEM_PROMPT.md
-- [x] README_ARCHITECTURE.md
-- [x] EXECUTION_PROMPT.md
-- [x] .cursorrules
-- [x] PHASES.md（本文件）
+- [x] AI_GUIDE.md — AI 協作指南
+- [x] SYSTEM_PROMPT.md — 開發規範
+- [x] README_ARCHITECTURE.md — 架構規格書
+- [x] EXECUTION_PROMPT.md — 執行提示
+- [x] .cursorrules — Cursor 規則
+- [x] PHASES.md — 開發階段（本文件）
+- [x] P0_GATE.md — 品質檢查門檻
+- [x] CHECKLIST.md — 驗收清單
 
 ### 驗收條件
-- 所有文件已建立
-- 資料夾結構符合 README_ARCHITECTURE.md
+- [x] 所有文件已建立
+- [x] 資料夾結構符合 README_ARCHITECTURE.md
 
 ---
 
@@ -54,10 +71,10 @@ slot-ide/
 - [x] SpinPacket 型別定義完成
 - [x] Board 型別定義完成
 - [x] Outcome 型別定義完成
-- [x] SymbolDefinition 型別定義完成（種類、分數、出現機率）
-- [x] LinesConfig 型別定義完成（線數、排列方式）
-- [x] VisualConfig 型別定義完成（動態參數 + 盤面視覺）
-- [x] AssetsPatch 型別定義完成（5 種素材）
+- [x] SymbolDefinition 型別定義完成
+- [x] LinesConfig 型別定義完成
+- [x] VisualConfig 型別定義完成
+- [x] AssetsPatch 型別定義完成
 
 ### 驗收條件
 - [x] `npm run dev` 可啟動
@@ -84,7 +101,7 @@ src/engine/
 ```
 
 ### 交付物
-- [x] Outcome 管理（CRUD）
+- [x] Outcome 管理（CRUD + 權重抽樣）
 - [x] Symbol 管理（CRUD + 權重抽樣）
 - [x] Lines 管理（20 條線配置）
 - [x] Pool 建立邏輯（含 cap 限制）
@@ -121,7 +138,7 @@ src/runtime/
 
 ### 驗收條件
 - [x] 用 SpinPacket 測試動畫正確
-- [x] Runtime 不含任何 RNG
+- [x] Runtime 不含任何 RNG（僅視覺用假符號除外）
 - [x] Runtime 不修改 SpinPacket
 
 ---
@@ -136,18 +153,18 @@ src/runtime/
 src/ide/
 ├── index.ts
 ├── panels/
-│   ├── GameParamsPanel.tsx    # Base Bet 設定
-│   ├── OutcomePanel.tsx       # Outcome CRUD
-│   ├── SymbolPanel.tsx        # Symbol 編輯
-│   ├── LinesPanel.tsx         # Lines 設定
-│   ├── AnimationPanel.tsx     # 動畫參數
-│   ├── LayoutPanel.tsx        # 盤面視覺
-│   └── ControlPanel.tsx       # Build / Spin / Simulation
+│   ├── GameParamsPanel.tsx
+│   ├── OutcomePanel.tsx
+│   ├── SymbolPanel.tsx
+│   ├── LinesPanel.tsx
+│   ├── AnimationPanel.tsx
+│   ├── LayoutPanel.tsx
+│   └── ControlPanel.tsx
 └── layout/
     └── IDELayout.tsx
 
 src/store/
-└── index.ts
+└── index.tsx
 ```
 
 ### 子任務分解
@@ -170,7 +187,7 @@ src/store/
 - [x] AnimationPanel（5 個動畫參數）
 - [x] LayoutPanel（3 個盤面視覺參數）
 - [x] ControlPanel（Build Pools / Spin）
-- [x] Store 狀態管理
+- [x] Store 狀態管理（React Context + useReducer）
 
 ### 驗收條件
 - [x] 點擊 Spin → 動畫正確播放
@@ -190,6 +207,7 @@ src/store/
 src/analytics/
 ├── index.ts
 ├── simulator.ts
+├── statistics.ts
 ├── charts.tsx
 └── csv-export.ts
 ```
@@ -198,7 +216,8 @@ src/analytics/
 - [x] N 次 Spin 批次執行
 - [x] RTP / HitRate / AvgWin 計算
 - [x] 圖表顯示（折線圖、離散圖）
-- [x] CSV 匯出
+- [x] CSV 匯出（詳細/摘要/完整）
+- [x] 進度條與中止功能
 
 ### 驗收條件
 - [x] Simulation 使用 Math Engine 的 spin（非另起邏輯）
@@ -207,47 +226,64 @@ src/analytics/
 
 ---
 
-## Phase 6：素材與完善 🔄
+## Phase 6：素材管理系統 ✅
 
 ### 目標
-完成素材上傳與最終打磨
+完成素材上傳與管理功能
 
 ### 範圍
 ```
 src/ide/panels/AssetPanel.tsx
-src/runtime/Symbol.tsx
-src/utils/asset-storage.ts
+src/utils/
+├── index.ts
+└── asset-storage.ts
 ```
 
+### 子任務分解
+| Prompt | 目標 | 狀態 |
+|--------|------|------|
+| 6-1 | localStorage 素材儲存工具 | ✅ 完成 |
+| 6-2 | AssetPanel UI + Store actions | ✅ 完成 |
+| 6-3 | Symbol 圖片渲染確認 | ✅ 完成 |
+| 6-4 | 背景/框架渲染層 | ✅ 完成 |
+| 6-5 | 整合驗證 | ✅ 完成 |
+
 ### 交付物
-- [ ] Symbol 圖片上傳（與 Symbol 種類連動）
-- [ ] 盤面底圖 / 框架 / 背景 / 人物上傳
-- [ ] 素材即時反映到 Runtime
-- [ ] localStorage 持久化儲存
+- [x] Symbol 圖片上傳（與 Symbol 種類連動）
+- [x] 盤面底圖 / 框架 / 背景 / 人物上傳
+- [x] 素材即時反映到 Runtime
+- [x] localStorage 持久化儲存
+- [x] 清除單一 / 所有素材功能
 
 ### 驗收條件
-- [ ] 上傳素材後立即顯示
-- [ ] 素材儲存於 localStorage
-- [ ] 完整產品可獨立運作
+- [x] 上傳素材後立即顯示
+- [x] 素材儲存於 localStorage
+- [x] 頁面重新整理後素材仍在
+- [x] 完整產品可獨立運作
 
 ---
 
-## 階段總覽
+## 開發流程回顧
 
-| Phase | 名稱 | 狀態 |
-|-------|------|------|
-| 0 | 地基文件 | ✅ 完成 |
-| 1 | 型別定義與專案初始化 | ✅ 完成 |
-| 2 | Math Engine 核心 | ✅ 完成 |
-| 3 | Runtime Renderer | ✅ 完成 |
-| 4 | IDE 介面串接 | ✅ 完成 |
-| 5 | Simulation 與 Analytics | ✅ 完成 |
-| 6 | 素材與完善 | 🔄 進行中 |
+### 成功的做法
 
----
+1. **分階段開發** — 每個 Phase 完成驗收後再進入下一階段
+2. **型別先行** — Phase 1 先定義所有型別，後續開發更順暢
+3. **單向資料流** — Math → SpinPacket → Runtime，職責清晰
+4. **漸進式整合** — Phase 4 分成 6 個子任務，降低風險
+5. **文件驅動** — 重要決策都先記錄在文件中
 
-## 注意事項
+### 注意事項
 
 - 每個 Phase 完成後，需經過驗收再進入下一階段
 - 不可跨階段開發（例如 Phase 2 未完成就做 Phase 4）
 - 遇到架構疑問，回到 README_ARCHITECTURE.md 查閱
+- 任何變更都需要通過 P0_GATE.md 的檢查
+
+---
+
+## 後續開發建議
+
+本 MVP 已完成，可作為後續完整版開發的參考。
+
+詳見 [MVP_SUMMARY.md](./MVP_SUMMARY.md) 中的完整建議。
