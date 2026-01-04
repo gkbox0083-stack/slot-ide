@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
 import type { SpinPacket, VisualConfig, AssetsPatch } from '../types/index.js';
 import type { PoolStatus } from '../engine/pool-builder.js';
+import type { SimulationResult } from '../analytics/index.js';
 
 /**
  * IDE 全域狀態
@@ -21,6 +22,14 @@ export interface IDEState {
   baseBet: number;
   simulationCount: number;
   
+  // === Simulation 狀態 ===
+  simulationConfig: {
+    count: number;  // 預設 1000
+  };
+  simulationResult: SimulationResult | null;
+  isSimulating: boolean;
+  simulationProgress: number;  // 0-1
+  
   // === 視覺參數 ===
   visualConfig: VisualConfig;
   
@@ -38,6 +47,10 @@ export type IDEAction =
   | { type: 'SET_ACTIVE_TAB'; payload: 'math' | 'visual' | 'control' }
   | { type: 'SET_BASE_BET'; payload: number }
   | { type: 'SET_SIMULATION_COUNT'; payload: number }
+  | { type: 'SET_SIMULATION_RESULT'; payload: SimulationResult | null }
+  | { type: 'SET_IS_SIMULATING'; payload: boolean }
+  | { type: 'SET_SIMULATION_PROGRESS'; payload: number }
+  | { type: 'RESET_SIMULATION' }
   | { type: 'SET_VISUAL_CONFIG'; payload: VisualConfig }
   | { type: 'SET_ASSETS'; payload: AssetsPatch };
 
@@ -59,6 +72,14 @@ const initialState: IDEState = {
   // 遊戲參數
   baseBet: 1,
   simulationCount: 100,
+  
+  // Simulation 狀態
+  simulationConfig: {
+    count: 1000,
+  },
+  simulationResult: null,
+  isSimulating: false,
+  simulationProgress: 0,
   
   // 視覺參數
   visualConfig: {
@@ -120,6 +141,36 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
       return {
         ...state,
         simulationCount: action.payload,
+        simulationConfig: {
+          ...state.simulationConfig,
+          count: action.payload,
+        },
+      };
+    
+    case 'SET_SIMULATION_RESULT':
+      return {
+        ...state,
+        simulationResult: action.payload,
+      };
+    
+    case 'SET_IS_SIMULATING':
+      return {
+        ...state,
+        isSimulating: action.payload,
+      };
+    
+    case 'SET_SIMULATION_PROGRESS':
+      return {
+        ...state,
+        simulationProgress: action.payload,
+      };
+    
+    case 'RESET_SIMULATION':
+      return {
+        ...state,
+        simulationResult: null,
+        isSimulating: false,
+        simulationProgress: 0,
       };
     
     case 'SET_VISUAL_CONFIG':

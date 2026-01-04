@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { poolBuilder, spinExecutor } from '../../engine/index.js';
+import { useState, useRef, useEffect } from 'react';
+import { poolBuilder, spinExecutor, outcomeManager } from '../../engine/index.js';
+import { Simulator, SimulationCharts, exportDetailCSV, exportSummaryCSV, exportCombinedCSV } from '../../analytics/index.js';
 import type { SlotMachineRef } from '../../runtime/index.js';
 import { useIDE } from '../../store/index.jsx';
 
@@ -18,6 +19,11 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
   const { state, dispatch } = useIDE();
   const [poolCap, setPoolCap] = useState<number>(100);
   const [buildError, setBuildError] = useState<string | null>(null);
+  const [customCount, setCustomCount] = useState<string>('');
+  const [showCharts, setShowCharts] = useState<boolean>(false);
+  const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
+  const simulatorRef = useRef<Simulator | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Build Pools
   const handleBuildPools = () => {
@@ -78,6 +84,507 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
 
   // 獲取上次 Spin 結果
   const lastResult = state.currentSpinPacket?.meta;
+
+  // 模擬次數選擇
+  const presetCounts = [100, 1000, 10000];
+  const currentCount = state.simulationConfig.count;
+  const isPresetSelected = presetCounts.includes(currentCount);
+
+  const handleCountChange = (count: number) => {
+    dispatch({ type: 'SET_SIMULATION_COUNT', payload: count });
+    setCustomCount('');
+  };
+
+  const handleCustomCountChange = (value: string) => {
+    setCustomCount(value);
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 10 && num <= 100000) {
+      dispatch({ type: 'SET_SIMULATION_COUNT', payload: num });
+    }
+  };
+
+  // 開始模擬
+  const handleStartSimulation = async () => {
+    if (!state.isPoolsBuilt || state.isSimulating) return;
+
+    dispatch({ type: 'SET_IS_SIMULATING', payload: true });
+    dispatch({ type: 'SET_SIMULATION_PROGRESS', payload: 0 });
+    dispatch({ type: 'SET_SIMULATION_RESULT', payload: null });
+
+    const simulator = new Simulator(spinExecutor, outcomeManager);
+    simulatorRef.current = simulator;
+
+    try {
+      const result = await simulator.runAsync(
+        {
+          count: state.simulationConfig.count,
+          baseBet: state.baseBet,
+          visualConfig: state.visualConfig,
+        },
+        (progress) => {
+          dispatch({ type: 'SET_SIMULATION_PROGRESS', payload: progress });
+        }
+      );
+
+      dispatch({ type: 'SET_SIMULATION_RESULT', payload: result });
+    } finally {
+      dispatch({ type: 'SET_IS_SIMULATING', payload: false });
+      simulatorRef.current = null;
+    }
+  };
+
+  // 停止模擬
+  const handleStopSimulation = () => {
+    simulatorRef.current?.abort();
+  };
+
+  // 數字格式化函數
+  const formatNumber = (n: number): string => {
+    return n.toLocaleString();
+  };
+
+  const formatPercent = (n: number): string => {
+    return n.toFixed(1) + '%';
+  };
+
+  const formatDuration = (ms: number): string => {
+    return (ms / 1000).toFixed(2) + ' 秒';
+  };
+
+  // 關閉匯出選單（點擊外部時）
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showExportMenu]);
+
+  // 匯出處理
+  const handleExport = (type: 'detail' | 'summary' | 'combined') => {
+    if (!state.simulationResult) return;
+    
+    setShowExportMenu(false);
+    
+    switch (type) {
+      case 'detail':
+        exportDetailCSV(state.simulationResult);
+        break;
+      case 'summary':
+        exportSummaryCSV(state.simulationResult);
+        break;
+      case 'combined':
+        exportCombinedCSV(state.simulationResult);
+        break;
+    }
+  };
+
+  // 進度條渲染
+  const renderProgressBar = () => {
+    if (!state.isSimulating && state.simulationProgress === 0) return null;
+
+    const progress = state.simulationProgress;
+    const current = Math.round(progress * state.simulationConfig.count);
+    const total = state.simulationConfig.count;
+    const percent = Math.round(progress * 100);
+
+    return (
+      <div style={{
+        padding: '12px',
+        backgroundColor: 'white',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        marginBottom: '12px',
+      }}>
+        <div style={{
+          fontSize: '13px',
+          marginBottom: '8px',
+          color: '#666',
+        }}>
+          進度: {percent}% ({formatNumber(current)}/{formatNumber(total)})
+        </div>
+        <div style={{
+          width: '100%',
+          height: '20px',
+          backgroundColor: '#e0e0e0',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          display: 'flex',
+        }}>
+          <div style={{
+            width: `${percent}%`,
+            height: '100%',
+            backgroundColor: '#3498db',
+            transition: 'width 0.1s ease',
+          }} />
+        </div>
+      </div>
+    );
+  };
+
+  // 統計結果渲染
+  const renderStatistics = () => {
+    if (!state.simulationResult) return null;
+
+    const stats = state.simulationResult.statistics;
+    const duration = state.simulationResult.duration;
+
+    return (
+      <div style={{
+        marginTop: '16px',
+        paddingTop: '16px',
+        borderTop: '2px solid #ddd',
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px',
+        }}>
+          <h4 style={{
+            margin: 0,
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#333',
+          }}>
+            📈 統計結果
+          </h4>
+          <span style={{
+            fontSize: '12px',
+            color: '#666',
+          }}>
+            耗時: {formatDuration(duration)}
+          </span>
+        </div>
+
+        {/* 主要指標 */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '12px',
+          marginBottom: '16px',
+        }}>
+          <div style={{
+            padding: '12px',
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              color: '#666',
+              marginBottom: '4px',
+            }}>
+              RTP
+            </div>
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#2ecc71',
+            }}>
+              {formatPercent(stats.rtp)}
+            </div>
+          </div>
+          <div style={{
+            padding: '12px',
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              color: '#666',
+              marginBottom: '4px',
+            }}>
+              Hit Rate
+            </div>
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#3498db',
+            }}>
+              {formatPercent(stats.hitRate)}
+            </div>
+          </div>
+          <div style={{
+            padding: '12px',
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontSize: '11px',
+              color: '#666',
+              marginBottom: '4px',
+            }}>
+              Avg Win
+            </div>
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#e74c3c',
+            }}>
+              {formatNumber(stats.avgWin)}
+            </div>
+          </div>
+        </div>
+
+        {/* 詳細數據 */}
+        <div style={{
+          padding: '12px',
+          backgroundColor: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          marginBottom: '12px',
+          fontSize: '13px',
+        }}>
+          <div style={{ marginBottom: '4px' }}>
+            Total Spins: {formatNumber(stats.totalSpins)}
+          </div>
+          <div style={{ marginBottom: '4px' }}>
+            Total Bet: {formatNumber(stats.totalBet)}
+          </div>
+          <div style={{ marginBottom: '8px' }}>
+            Total Win: {formatNumber(stats.totalWin)}
+          </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '8px',
+            paddingTop: '8px',
+            borderTop: '1px solid #eee',
+          }}>
+            <div>
+              Max Win: {formatNumber(stats.maxWin)}
+            </div>
+            <div>
+              Min Win: {formatNumber(stats.minWin)}
+            </div>
+          </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '4px',
+          }}>
+            <div>
+              Max Profit: {stats.maxProfit >= 0 ? '+' : ''}{formatNumber(stats.maxProfit)}
+            </div>
+            <div>
+              Min Profit: {formatNumber(stats.minProfit)}
+            </div>
+          </div>
+        </div>
+
+        {/* Outcome 分佈 */}
+        <div style={{
+          padding: '12px',
+          backgroundColor: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          fontSize: '13px',
+        }}>
+          <div style={{
+            marginBottom: '12px',
+            fontWeight: 'bold',
+            fontSize: '12px',
+            color: '#666',
+          }}>
+            ┌─ Outcome 分佈 ─────────────────────────────────┐
+          </div>
+          {stats.outcomeDistribution.map((dist) => {
+            const barLength = Math.round(dist.percentage / 5);
+            const bar = '█'.repeat(barLength);
+            return (
+              <div key={dist.outcomeId} style={{
+                marginBottom: '12px',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '4px',
+                }}>
+                  <span style={{ fontWeight: 'bold' }}>
+                    {dist.outcomeName}
+                  </span>
+                  <span style={{ color: '#666' }}>
+                    {formatNumber(dist.count)} ({formatPercent(dist.percentage)})
+                  </span>
+                </div>
+                <div style={{
+                  marginBottom: '2px',
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                }}>
+                  {bar}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  color: '#999',
+                }}>
+                  預期 {formatPercent(dist.expectedPercentage)}
+                </div>
+              </div>
+            );
+          })}
+          <div style={{
+            marginTop: '12px',
+            fontSize: '12px',
+            color: '#666',
+          }}>
+            └────────────────────────────────────────────────┘
+          </div>
+        </div>
+
+        {/* 功能按鈕 */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginTop: '12px',
+        }}>
+          <button
+            onClick={() => setShowCharts(true)}
+            disabled={!state.simulationResult}
+            style={{
+              flex: 1,
+              padding: '8px',
+              fontSize: '12px',
+              backgroundColor: state.simulationResult ? '#3498db' : '#cccccc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: state.simulationResult ? 'pointer' : 'not-allowed',
+              fontWeight: 'bold',
+            }}
+          >
+            📊 顯示圖表
+          </button>
+          <div style={{ position: 'relative', display: 'inline-block', flex: 1 }}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={!state.simulationResult}
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '12px',
+                backgroundColor: state.simulationResult ? '#2ecc71' : '#cccccc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: state.simulationResult ? 'pointer' : 'not-allowed',
+                fontWeight: 'bold',
+              }}
+            >
+              📁 匯出 CSV ▼
+            </button>
+            
+            {showExportMenu && state.simulationResult && (
+              <div
+                ref={exportMenuRef}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '4px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  zIndex: 100,
+                  overflow: 'hidden',
+                }}
+              >
+                <button
+                  onClick={() => handleExport('detail')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '12px',
+                    backgroundColor: '#fff',
+                    color: '#333',
+                    border: 'none',
+                    borderBottom: '1px solid #eee',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }}
+                >
+                  📋 詳細報表
+                </button>
+                <button
+                  onClick={() => handleExport('summary')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '12px',
+                    backgroundColor: '#fff',
+                    color: '#333',
+                    border: 'none',
+                    borderBottom: '1px solid #eee',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }}
+                >
+                  📊 摘要報表
+                </button>
+                <button
+                  onClick={() => handleExport('combined')}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '12px',
+                    backgroundColor: '#fff',
+                    color: '#333',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }}
+                >
+                  📑 完整報表
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -332,65 +839,152 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
           📊 批次模擬
         </h3>
 
-        {/* 模擬次數輸入 */}
+        {/* 模擬次數選擇 */}
         <div style={{ marginBottom: '12px' }}>
           <label style={{ 
             display: 'block', 
-            marginBottom: '4px', 
+            marginBottom: '8px', 
             fontSize: '14px', 
             color: '#666' 
           }}>
             模擬次數:
           </label>
-          <input
-            type="number"
-            min="1"
-            max="100000"
-            value={state.simulationCount}
-            onChange={(e) => {
-              const value = parseInt(e.target.value, 10);
-              if (!isNaN(value) && value >= 1 && value <= 100000) {
-                dispatch({ type: 'SET_SIMULATION_COUNT', payload: value });
-              }
-            }}
+          
+          {/* 預設選項 */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '8px',
+          }}>
+            {presetCounts.map((count) => (
+              <button
+                key={count}
+                onClick={() => handleCountChange(count)}
+                disabled={state.isSimulating}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  fontSize: '13px',
+                  backgroundColor: (currentCount === count && isPresetSelected) ? '#3498db' : 'white',
+                  color: (currentCount === count && isPresetSelected) ? 'white' : '#333',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  cursor: state.isSimulating ? 'not-allowed' : 'pointer',
+                  fontWeight: (currentCount === count && isPresetSelected) ? 'bold' : 'normal',
+                  opacity: state.isSimulating ? 0.6 : 1,
+                }}
+              >
+                {formatNumber(count)}
+              </button>
+            ))}
+          </div>
+
+          {/* 自訂輸入 */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span style={{
+              fontSize: '13px',
+              color: '#666',
+              whiteSpace: 'nowrap',
+            }}>
+              自訂:
+            </span>
+            <input
+              type="number"
+              min="10"
+              max="100000"
+              value={customCount || (isPresetSelected ? '' : currentCount.toString())}
+              onChange={(e) => handleCustomCountChange(e.target.value)}
+              disabled={state.isSimulating}
+              placeholder="10-100000"
+              style={{
+                flex: 1,
+                padding: '8px',
+                fontSize: '13px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                opacity: state.isSimulating ? 0.6 : 1,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* 按鈕組 */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '12px',
+        }}>
+          <button
+            onClick={handleStartSimulation}
+            disabled={!state.isPoolsBuilt || state.isSimulating}
             style={{
-              width: '100%',
-              padding: '8px',
+              flex: 1,
+              padding: '12px',
               fontSize: '14px',
-              border: '1px solid #ddd',
+              backgroundColor: (state.isPoolsBuilt && !state.isSimulating) ? '#2ecc71' : '#cccccc',
+              color: 'white',
+              border: 'none',
               borderRadius: '4px',
+              cursor: (state.isPoolsBuilt && !state.isSimulating) ? 'pointer' : 'not-allowed',
+              fontWeight: 'bold',
+            }}
+          >
+            ▶️ 開始模擬
+          </button>
+          <button
+            onClick={handleStopSimulation}
+            disabled={!state.isSimulating}
+            style={{
+              flex: 1,
+              padding: '12px',
+              fontSize: '14px',
+              backgroundColor: state.isSimulating ? '#e74c3c' : '#cccccc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: state.isSimulating ? 'pointer' : 'not-allowed',
+              fontWeight: 'bold',
+            }}
+          >
+            ⏹️ 停止
+          </button>
+        </div>
+
+        {/* 進度條 */}
+        {renderProgressBar()}
+
+        {/* 統計結果 */}
+        {renderStatistics()}
+      </div>
+
+      {/* 圖表彈出視窗 */}
+      {showCharts && state.simulationResult && (
+        <>
+          {/* 背景遮罩 */}
+          <div
+            onClick={() => setShowCharts(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 999,
             }}
           />
-        </div>
-
-        {/* 開始模擬按鈕 */}
-        <button
-          disabled
-          style={{
-            width: '100%',
-            padding: '12px',
-            fontSize: '14px',
-            backgroundColor: '#cccccc',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'not-allowed',
-            fontWeight: 'bold',
-            marginBottom: '12px',
-          }}
-        >
-          ▶️ 開始模擬
-        </button>
-
-        {/* 提示 */}
-        <div style={{ 
-          fontSize: '12px', 
-          color: '#999',
-          fontStyle: 'italic',
-        }}>
-          提示: Phase 5 實作
-        </div>
-      </div>
+          {/* 圖表元件 */}
+          <SimulationCharts
+            result={state.simulationResult}
+            baseBet={state.baseBet}
+            onClose={() => setShowCharts(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
