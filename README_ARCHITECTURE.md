@@ -358,3 +358,167 @@ interface Pool {
 | 版本 | 日期 | 說明 |
 |------|------|------|
 | 1.0 | 2025-01-02 | 初始版本，完整架構定義 |
+
+# Store 規格補充（README_ARCHITECTURE 附錄）
+
+本文件補充 `src/store/index.ts` 的具體規格。
+
+---
+
+## 狀態結構
+
+```typescript
+/**
+ * IDE 全域狀態
+ */
+interface IDEState {
+  // === 盤池狀態 ===
+  isPoolsBuilt: boolean;
+  poolStatus: PoolStatus[];
+  
+  // === Spin 狀態 ===
+  currentSpinPacket: SpinPacket | null;
+  isSpinning: boolean;
+  
+  // === UI 狀態 ===
+  activeTab: 'math' | 'visual' | 'control';
+  
+  // === 遊戲參數 ===
+  baseBet: number;
+  simulationCount: number;
+  
+  // === 視覺參數 ===
+  visualConfig: VisualConfig;
+  
+  // === 素材 ===
+  assets: AssetsPatch;
+}
+```
+
+---
+
+## 狀態更新規則
+
+### 1. 盤池相關
+- `buildPools()` 後更新 `isPoolsBuilt` 和 `poolStatus`
+- 任何數學參數改變後，需重新 `buildPools()`
+
+### 2. Spin 相關
+- `spin()` 後更新 `currentSpinPacket`
+- 動畫開始時設定 `isSpinning = true`
+- 動畫完成時設定 `isSpinning = false`
+
+### 3. 視覺參數
+- `visualConfig` 改變後立即反映到下次 Spin
+- 不需要重新 `buildPools()`
+
+### 4. 素材
+- `assets` 改變後立即反映到 Runtime
+- 儲存到 localStorage
+
+---
+
+## 狀態與模組的關係
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     Store                           │
+│  (IDEState)                                         │
+└─────────────────────────────────────────────────────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│  IDE Panels │      │ Math Engine │      │   Runtime   │
+│  (讀+寫)     │      │  (讀)        │      │  (讀)        │
+└─────────────┘      └─────────────┘      └─────────────┘
+```
+
+### 讀寫權限
+- **IDE Panels**：可讀取和更新 Store
+- **Math Engine**：只讀取 Store（透過參數傳入）
+- **Runtime**：只讀取 Store（透過 props 傳入）
+
+---
+
+## 初始值
+
+```typescript
+const initialState: IDEState = {
+  // 盤池狀態
+  isPoolsBuilt: false,
+  poolStatus: [],
+  
+  // Spin 狀態
+  currentSpinPacket: null,
+  isSpinning: false,
+  
+  // UI 狀態
+  activeTab: 'control',
+  
+  // 遊戲參數
+  baseBet: 1,
+  simulationCount: 100,
+  
+  // 視覺參數
+  visualConfig: {
+    animation: {
+      spinSpeed: 20,
+      spinDuration: 2000,
+      reelStopDelay: 200,
+      easeStrength: 0.5,
+      bounceStrength: 0.3,
+    },
+    layout: {
+      reelGap: 10,
+      symbolScale: 1,
+      boardScale: 1,
+    },
+  },
+  
+  // 素材
+  assets: {},
+};
+```
+
+---
+
+## 實作方式
+
+Phase 4 採用 **React Context + useReducer** 實作，不引入外部狀態管理庫。
+
+```typescript
+// src/store/index.ts
+
+import { createContext, useContext, useReducer } from 'react';
+
+// Action Types
+type IDEAction =
+  | { type: 'SET_POOLS_BUILT'; payload: { status: PoolStatus[] } }
+  | { type: 'SET_SPIN_PACKET'; payload: SpinPacket }
+  | { type: 'SET_SPINNING'; payload: boolean }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'math' | 'visual' | 'control' }
+  | { type: 'SET_BASE_BET'; payload: number }
+  | { type: 'SET_SIMULATION_COUNT'; payload: number }
+  | { type: 'SET_VISUAL_CONFIG'; payload: VisualConfig }
+  | { type: 'SET_ASSETS'; payload: AssetsPatch };
+
+// Reducer
+function ideReducer(state: IDEState, action: IDEAction): IDEState {
+  // ...
+}
+
+// Context
+export const IDEContext = createContext<{
+  state: IDEState;
+  dispatch: React.Dispatch<IDEAction>;
+} | null>(null);
+
+// Hook
+export function useIDE() {
+  const context = useContext(IDEContext);
+  if (!context) {
+    throw new Error('useIDE must be used within IDEProvider');
+  }
+  return context;
+}
+```
