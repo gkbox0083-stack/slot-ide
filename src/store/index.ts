@@ -23,3 +23,4 @@ export {
   selectCurrentMultiplier,
 } from './useFreeSpinStore.js';
 
+export { useSimulationStore } from './useSimulationStore.js';

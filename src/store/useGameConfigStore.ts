@@ -5,7 +5,7 @@ import type { Outcome, OutcomeConfig } from '../types/outcome.js';
 import type { LinesConfig } from '../types/lines.js';
 import type { VisualConfig, AssetsPatch } from '../types/visual.js';
 import type { SpinPacket } from '../types/spin-packet.js';
-import type { BoardConfig } from '../types/board.js';
+import type { BoardConfig, Board } from '../types/board.js';
 import type { FreeSpinConfig } from '../types/free-spin.js';
 
 /**
@@ -15,6 +15,7 @@ export interface GameConfigState {
   // 遊戲基本資料
   gameName: string;
   baseBet: number;
+  balance: number;
   
   // 盤面配置
   boardConfig: BoardConfig;
@@ -39,6 +40,10 @@ export interface GameConfigState {
   
   // 當前 SpinPacket
   currentSpinPacket: SpinPacket | null;
+  
+  // Pool 資料
+  pools: Map<string, Board[]>;
+  isPoolsBuilt: boolean;
 }
 
 /**
@@ -48,6 +53,7 @@ export interface GameConfigActions {
   // 基本資料
   setGameName: (name: string) => void;
   setBaseBet: (bet: number) => void;
+  setBalance: (balance: number) => void;
   
   // 盤面配置
   setBoardConfig: (config: BoardConfig) => void;
@@ -85,6 +91,10 @@ export interface GameConfigActions {
   
   // SpinPacket
   setCurrentSpinPacket: (packet: SpinPacket | null) => void;
+  
+  // Pool 管理
+  setPools: (pools: Map<string, Board[]>) => void;
+  setIsPoolsBuilt: (isBuilt: boolean) => void;
   
   // 重置
   resetToDefaults: () => void;
@@ -229,6 +239,7 @@ const defaultBoardConfig: BoardConfig = {
 const initialState: GameConfigState = {
   gameName: '我的老虎機',
   baseBet: 1,
+  balance: 10000,
   boardConfig: defaultBoardConfig,
   symbols: defaultSymbols,
   outcomeConfig: defaultOutcomeConfig,
@@ -237,6 +248,8 @@ const initialState: GameConfigState = {
   freeSpinConfig: defaultFreeSpinConfig,
   assets: {},
   currentSpinPacket: null,
+  pools: new Map(),
+  isPoolsBuilt: false,
 };
 
 /**
@@ -255,6 +268,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       // 基本資料
       setGameName: (name) => set({ gameName: name }),
       setBaseBet: (bet) => set({ baseBet: bet }),
+      setBalance: (balance) => set({ balance }),
       
       // 盤面配置
       setBoardConfig: (config) => set({ boardConfig: config }),
@@ -382,6 +396,10 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
 
       // SpinPacket
       setCurrentSpinPacket: (packet) => set({ currentSpinPacket: packet }),
+      
+      // Pool 管理
+      setPools: (pools) => set({ pools }),
+      setIsPoolsBuilt: (isBuilt) => set({ isPoolsBuilt: isBuilt }),
 
       // 重置
       resetToDefaults: () => set(initialState),
@@ -391,6 +409,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       partialize: (state) => ({
         gameName: state.gameName,
         baseBet: state.baseBet,
+        balance: state.balance,
         boardConfig: state.boardConfig,
         symbols: state.symbols,
         outcomeConfig: state.outcomeConfig,
