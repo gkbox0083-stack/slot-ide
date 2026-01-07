@@ -1,435 +1,537 @@
-import { useState, useEffect } from 'react';
-import { symbolManager } from '../../engine/index.js';
-import type { SymbolDefinition } from '../../types/symbol.js';
+import { useState } from 'react';
+import { useGameConfigStore } from '../../store/useGameConfigStore.js';
+import type { 
+  SymbolDefinition, 
+  SymbolType, 
+  SymbolCategory,
+} from '../../types/symbol.js';
 
 /**
- * SymbolPanel Symbol 設定面板
+ * SymbolPanel Symbol 設定面板（V2 擴展版）
+ * 支援 Wild/Scatter 配置、ngWeight/fgWeight 雙欄
  */
 export function SymbolPanel() {
-  const [symbols, setSymbols] = useState<SymbolDefinition[]>([]);
-  const [appearanceRates, setAppearanceRates] = useState<Record<string, number>>({});
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-
-  // 載入 Symbols
-  const loadSymbols = () => {
-    const allSymbols = symbolManager.getAll();
-    setSymbols(allSymbols);
-    calculateAppearanceRates(allSymbols);
-  };
-
-  // 計算出現率
-  const calculateAppearanceRates = (symbolList: SymbolDefinition[]) => {
-    const totalWeight = symbolList.reduce((sum, s) => sum + s.appearanceWeight, 0);
-    const rates: Record<string, number> = {};
-
-    if (totalWeight > 0) {
-      symbolList.forEach((symbol) => {
-        rates[symbol.id] = (symbol.appearanceWeight / totalWeight) * 100;
-      });
-    } else {
-      symbolList.forEach((symbol) => {
-        rates[symbol.id] = 0;
-      });
-    }
-
-    setAppearanceRates(rates);
-  };
-
-  useEffect(() => {
-    loadSymbols();
-  }, []);
-
-  // 驗證 Symbol
-  const validateSymbol = (symbol: SymbolDefinition): Record<string, string> => {
-    const errors: Record<string, string> = {};
-
-    if (symbol.payouts.match3 < 0) {
-      errors.match3 = '分數必須 ≥ 0';
-    }
-    if (symbol.payouts.match4 < 0) {
-      errors.match4 = '分數必須 ≥ 0';
-    }
-    if (symbol.payouts.match5 < 0) {
-      errors.match5 = '分數必須 ≥ 0';
-    }
-    if (symbol.payouts.match3 > symbol.payouts.match4) {
-      errors.match4 = '4連線分數必須 ≥ 3連線分數';
-    }
-    if (symbol.payouts.match4 > symbol.payouts.match5) {
-      errors.match5 = '5連線分數必須 ≥ 4連線分數';
-    }
-    if (symbol.appearanceWeight <= 0) {
-      errors.weight = '權重必須 > 0';
-    }
-
-    return errors;
-  };
-
-  // 更新 Symbol
-  const handleUpdate = (symbol: SymbolDefinition, field: string, value: number) => {
-    const updated: SymbolDefinition = { ...symbol };
-
-    if (field === 'match3') {
-      updated.payouts = { ...updated.payouts, match3: value };
-    } else if (field === 'match4') {
-      updated.payouts = { ...updated.payouts, match4: value };
-    } else if (field === 'match5') {
-      updated.payouts = { ...updated.payouts, match5: value };
-    } else if (field === 'weight') {
-      updated.appearanceWeight = value;
-    }
-
-    const errors = validateSymbol(updated);
-    const errorKey = `${symbol.id}_${field}`;
-    
-    if (Object.keys(errors).length > 0) {
-      const fieldError = errors[field] || errors.match3 || errors.match4 || errors.match5;
-      if (fieldError) {
-        setValidationErrors({ ...validationErrors, [errorKey]: fieldError });
-      }
-      return;
-    }
-
-    // 清除該欄位的錯誤
-    const newErrors = { ...validationErrors };
-    delete newErrors[errorKey];
-    setValidationErrors(newErrors);
-
-    const success = symbolManager.update(updated);
-    if (success) {
-      setHasChanges(true);
-      loadSymbols();
-    }
-  };
+  const { symbols, updateSymbol, addSymbol, removeSymbol } = useGameConfigStore();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   // 按類別分組
-  const symbolsByCategory = symbols.reduce((acc, symbol) => {
-    if (!acc[symbol.category]) {
-      acc[symbol.category] = [];
-    }
-    acc[symbol.category].push(symbol);
-    return acc;
-  }, {} as Record<string, SymbolDefinition[]>);
-
-  // 類別標題
-  const categoryTitles: Record<string, string> = {
-    high: '高分符號',
-    low: '低分符號',
-    special: '特殊符號',
-  };
+  const normalSymbols = symbols.filter(s => s.type === 'normal');
+  const specialSymbols = symbols.filter(s => s.type === 'wild' || s.type === 'scatter');
 
   return (
-    <div style={{
-      padding: '16px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '4px',
-      border: '1px solid #ddd',
-    }}>
-      <h3 style={{
-        marginTop: 0,
-        marginBottom: '16px',
-        fontSize: '16px',
-        fontWeight: 'bold',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}>
-        🎨 Symbol 設定
-      </h3>
+    <div className="space-y-4">
+      {/* 一般符號 */}
+      <div className="bg-surface-900/50 rounded-lg p-3">
+        <h5 className="text-xs font-semibold text-surface-400 mb-2">一般符號</h5>
+        <div className="space-y-2">
+          {normalSymbols.map((symbol) => (
+            <SymbolItem
+              key={symbol.id}
+              symbol={symbol}
+              isEditing={editingId === symbol.id}
+              onEdit={() => setEditingId(symbol.id)}
+              onSave={(updated) => {
+                updateSymbol(updated);
+                setEditingId(null);
+              }}
+              onCancel={() => setEditingId(null)}
+              onDelete={() => removeSymbol(symbol.id)}
+            />
+          ))}
+        </div>
+      </div>
 
-      {/* 修改提示 */}
-      {hasChanges && (
-        <div style={{
-          marginBottom: '16px',
-          padding: '8px 12px',
-          backgroundColor: '#fff3cd',
-          border: '1px solid #ffc107',
-          borderRadius: '4px',
-          fontSize: '13px',
-          color: '#856404',
-        }}>
-          ⚠️ 修改後需重新 Build Pools
+      {/* 特殊符號 */}
+      <div className="bg-surface-900/50 rounded-lg p-3">
+        <h5 className="text-xs font-semibold text-purple-400 mb-2">特殊符號</h5>
+        <div className="space-y-2">
+          {specialSymbols.map((symbol) => (
+            <SymbolItem
+              key={symbol.id}
+              symbol={symbol}
+              isEditing={editingId === symbol.id}
+              onEdit={() => setEditingId(symbol.id)}
+              onSave={(updated) => {
+                updateSymbol(updated);
+                setEditingId(null);
+              }}
+              onCancel={() => setEditingId(null)}
+              onDelete={() => removeSymbol(symbol.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 新增符號 */}
+      {showAddForm ? (
+        <AddSymbolForm
+          onAdd={(symbol) => {
+            addSymbol(symbol);
+            setShowAddForm(false);
+          }}
+          onCancel={() => setShowAddForm(false)}
+        />
+      ) : (
+        <button 
+          onClick={() => setShowAddForm(true)}
+          className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 transition-colors text-sm font-semibold"
+        >
+          + 新增符號
+        </button>
+      )}
+
+      {/* 權重分佈預覽 */}
+      <WeightDistribution symbols={symbols} />
+    </div>
+  );
+}
+
+/**
+ * 單個符號項目
+ */
+interface SymbolItemProps {
+  symbol: SymbolDefinition;
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (symbol: SymbolDefinition) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}
+
+function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: SymbolItemProps) {
+  const [editedSymbol, setEditedSymbol] = useState(symbol);
+
+  // 更新 editedSymbol 當 symbol prop 變化時
+  if (!isEditing && editedSymbol.id !== symbol.id) {
+    setEditedSymbol(symbol);
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="p-3 bg-surface-800 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-bold text-surface-200">{symbol.id}</span>
+            <span className="text-sm text-surface-400">{symbol.name}</span>
+            <span className={`text-xs px-2 py-0.5 rounded ${
+              symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
+              symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
+              'bg-surface-600 text-surface-300'
+            }`}>
+              {symbol.type}
+            </span>
+          </div>
+          <div className="flex gap-1">
+            <button onClick={onEdit} className="px-2 py-1 text-xs bg-surface-700 text-surface-300 rounded hover:bg-surface-600">
+              編輯
+            </button>
+            <button onClick={onDelete} className="px-2 py-1 text-xs bg-red-900/50 text-red-300 rounded hover:bg-red-800">
+              刪除
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-4 text-xs text-surface-400">
+          <span>3連:{symbol.payouts.match3}</span>
+          <span>4連:{symbol.payouts.match4}</span>
+          <span>5連:{symbol.payouts.match5}</span>
+          <span className="text-blue-400">NG:{symbol.ngWeight}</span>
+          <span className="text-purple-400">FG:{symbol.fgWeight}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-surface-700 rounded-lg border border-primary-500/50">
+      {/* 基本資訊 */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="text-xs text-surface-400 block mb-1">ID</label>
+          <input
+            value={editedSymbol.id}
+            onChange={(e) => setEditedSymbol({ ...editedSymbol, id: e.target.value })}
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-surface-400 block mb-1">名稱</label>
+          <input
+            value={editedSymbol.name}
+            onChange={(e) => setEditedSymbol({ ...editedSymbol, name: e.target.value })}
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          />
+        </div>
+      </div>
+
+      {/* 類別選擇 */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="text-xs text-surface-400 block mb-1">類型</label>
+          <select
+            value={editedSymbol.type}
+            onChange={(e) => {
+              const type = e.target.value as SymbolType;
+              const updated = { ...editedSymbol, type };
+              
+              if (type === 'wild' && !updated.wildConfig) {
+                updated.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
+              } else if (type === 'scatter' && !updated.scatterConfig) {
+                updated.scatterConfig = {
+                  triggerCount: 3,
+                  freeSpinCount: 10,
+                  enableRetrigger: true,
+                  enableMultiplier: true,
+                  multiplierValue: 2,
+                };
+              }
+              setEditedSymbol(updated);
+            }}
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          >
+            <option value="normal">一般符號</option>
+            <option value="wild">Wild 百搭</option>
+            <option value="scatter">Scatter 分散</option>
+          </select>
+        </div>
+        {editedSymbol.type === 'normal' && (
+          <div>
+            <label className="text-xs text-surface-400 block mb-1">分類</label>
+            <select
+              value={editedSymbol.category}
+              onChange={(e) => setEditedSymbol({ ...editedSymbol, category: e.target.value as SymbolCategory })}
+              className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+            >
+              <option value="high">高分符號</option>
+              <option value="low">低分符號</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* 賠付設定 */}
+      <div className="mb-3">
+        <label className="text-xs text-surface-400 block mb-1">賠付 (3連/4連/5連)</label>
+        <div className="grid grid-cols-3 gap-2">
+          <input
+            type="number"
+            value={editedSymbol.payouts.match3}
+            onChange={(e) => setEditedSymbol({
+              ...editedSymbol,
+              payouts: { ...editedSymbol.payouts, match3: Number(e.target.value) }
+            })}
+            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+          />
+          <input
+            type="number"
+            value={editedSymbol.payouts.match4}
+            onChange={(e) => setEditedSymbol({
+              ...editedSymbol,
+              payouts: { ...editedSymbol.payouts, match4: Number(e.target.value) }
+            })}
+            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+          />
+          <input
+            type="number"
+            value={editedSymbol.payouts.match5}
+            onChange={(e) => setEditedSymbol({
+              ...editedSymbol,
+              payouts: { ...editedSymbol.payouts, match5: Number(e.target.value) }
+            })}
+            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+          />
+        </div>
+      </div>
+
+      {/* 權重設定 (NG/FG 雙欄) */}
+      <div className="mb-3">
+        <label className="text-xs text-surface-400 block mb-1">權重 (NG / FG)</label>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-blue-400">NG:</span>
+            <input
+              type="number"
+              value={editedSymbol.ngWeight}
+              onChange={(e) => setEditedSymbol({ ...editedSymbol, ngWeight: Number(e.target.value) })}
+              className="flex-1 px-2 py-1.5 bg-surface-900 border border-blue-700 rounded text-sm text-surface-200"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-purple-400">FG:</span>
+            <input
+              type="number"
+              value={editedSymbol.fgWeight}
+              onChange={(e) => setEditedSymbol({ ...editedSymbol, fgWeight: Number(e.target.value) })}
+              className="flex-1 px-2 py-1.5 bg-surface-900 border border-purple-700 rounded text-sm text-surface-200"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Wild 設定 */}
+      {editedSymbol.type === 'wild' && editedSymbol.wildConfig && (
+        <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg mb-3">
+          <h6 className="text-xs font-semibold text-yellow-400 mb-2">⚙️ Wild 設定</h6>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-surface-300">
+              <input
+                type="checkbox"
+                checked={editedSymbol.wildConfig.canReplaceNormal}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  wildConfig: { ...editedSymbol.wildConfig!, canReplaceNormal: e.target.checked }
+                })}
+                className="rounded border-surface-600"
+              />
+              替代一般符號
+            </label>
+            <label className="flex items-center gap-2 text-sm text-surface-300">
+              <input
+                type="checkbox"
+                checked={editedSymbol.wildConfig.canReplaceSpecial}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  wildConfig: { ...editedSymbol.wildConfig!, canReplaceSpecial: e.target.checked }
+                })}
+                className="rounded border-surface-600"
+              />
+              替代特殊符號
+            </label>
+          </div>
         </div>
       )}
 
-      {/* Symbol 列表（按類別分組） */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
-        {Object.entries(symbolsByCategory).map(([category, categorySymbols]) => (
-          <div
-            key={category}
-            style={{
-              padding: '16px',
-              backgroundColor: 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-            }}
-          >
-            <div style={{
-              marginBottom: '12px',
-              fontWeight: 'bold',
-              fontSize: '14px',
-            }}>
-              ┌─ {categoryTitles[category] || category} ───────────────────────────────────────────┐
+      {/* Scatter 設定 */}
+      {editedSymbol.type === 'scatter' && editedSymbol.scatterConfig && (
+        <div className="p-3 bg-purple-900/20 border border-purple-700/50 rounded-lg mb-3">
+          <h6 className="text-xs font-semibold text-purple-400 mb-2">⚙️ Scatter 設定</h6>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">觸發數量</label>
+              <select
+                value={editedSymbol.scatterConfig.triggerCount}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  scatterConfig: { ...editedSymbol.scatterConfig!, triggerCount: Number(e.target.value) }
+                })}
+                className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+              >
+                {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} 個</option>)}
+              </select>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {categorySymbols.map((symbol) => {
-                const appearanceRate = appearanceRates[symbol.id] || 0;
-                const symbolErrors = Object.keys(validationErrors)
-                  .filter(key => key.startsWith(`${symbol.id}_`))
-                  .reduce((acc, key) => {
-                    acc[key.replace(`${symbol.id}_`, '')] = validationErrors[key];
-                    return acc;
-                  }, {} as Record<string, string>);
-
-                return (
-                  <div
-                    key={symbol.id}
-                    style={{
-                      padding: '12px',
-                      backgroundColor: '#f8f9fa',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    <div style={{
-                      marginBottom: '12px',
-                      fontWeight: 'bold',
-                      fontSize: '13px',
-                    }}>
-                      ┌─ {symbol.id} {symbol.name} ─────────────────────────────────────────┐
-                    </div>
-
-                    {/* 分數設定 */}
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{
-                        display: 'flex',
-                        gap: '8px',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                      }}>
-                        <div style={{ flex: 1, minWidth: '120px' }}>
-                          <label style={{
-                            display: 'block',
-                            marginBottom: '4px',
-                            fontSize: '12px',
-                            color: '#666',
-                          }}>
-                            3連線:
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={symbol.payouts.match3}
-                            onChange={(e) => handleUpdate(symbol, 'match3', parseFloat(e.target.value) || 0)}
-                            style={{
-                              width: '100%',
-                              padding: '6px',
-                              fontSize: '12px',
-                              border: symbolErrors.match3 ? '1px solid #e74c3c' : '1px solid #ddd',
-                              borderRadius: '4px',
-                            }}
-                          />
-                          {symbolErrors.match3 && (
-                            <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '2px' }}>
-                              {symbolErrors.match3}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: '120px' }}>
-                          <label style={{
-                            display: 'block',
-                            marginBottom: '4px',
-                            fontSize: '12px',
-                            color: '#666',
-                          }}>
-                            4連線:
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={symbol.payouts.match4}
-                            onChange={(e) => handleUpdate(symbol, 'match4', parseFloat(e.target.value) || 0)}
-                            style={{
-                              width: '100%',
-                              padding: '6px',
-                              fontSize: '12px',
-                              border: symbolErrors.match4 ? '1px solid #e74c3c' : '1px solid #ddd',
-                              borderRadius: '4px',
-                            }}
-                          />
-                          {symbolErrors.match4 && (
-                            <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '2px' }}>
-                              {symbolErrors.match4}
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: '120px' }}>
-                          <label style={{
-                            display: 'block',
-                            marginBottom: '4px',
-                            fontSize: '12px',
-                            color: '#666',
-                          }}>
-                            5連線:
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={symbol.payouts.match5}
-                            onChange={(e) => handleUpdate(symbol, 'match5', parseFloat(e.target.value) || 0)}
-                            style={{
-                              width: '100%',
-                              padding: '6px',
-                              fontSize: '12px',
-                              border: symbolErrors.match5 ? '1px solid #e74c3c' : '1px solid #ddd',
-                              borderRadius: '4px',
-                            }}
-                          />
-                          {symbolErrors.match5 && (
-                            <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '2px' }}>
-                              {symbolErrors.match5}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 出現權重 */}
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        marginBottom: '4px',
-                        fontSize: '12px',
-                        color: '#666',
-                      }}>
-                        出現權重:
-                      </label>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input
-                          type="number"
-                          min="1"
-                          value={symbol.appearanceWeight}
-                          onChange={(e) => handleUpdate(symbol, 'weight', parseFloat(e.target.value) || 1)}
-                          style={{
-                            flex: 1,
-                            padding: '6px',
-                            fontSize: '12px',
-                            border: symbolErrors.weight ? '1px solid #e74c3c' : '1px solid #ddd',
-                            borderRadius: '4px',
-                          }}
-                        />
-                        <span style={{ fontSize: '12px', color: '#666' }}>→</span>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          color: '#2ecc71',
-                          minWidth: '100px',
-                        }}>
-                          出現率: {appearanceRate.toFixed(1)}%
-                        </span>
-                      </div>
-                      {symbolErrors.weight && (
-                        <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '2px' }}>
-                          {symbolErrors.weight}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{
-                      marginTop: '12px',
-                      fontSize: '12px',
-                      color: '#666',
-                    }}>
-                      └─────────────────────────────────────────────────────┘
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={{
-              marginTop: '12px',
-              fontSize: '12px',
-              color: '#666',
-            }}>
-              └──────────────────────────────────────────────────────────┘
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">Free Spin 次數</label>
+              <input
+                type="number"
+                value={editedSymbol.scatterConfig.freeSpinCount}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  scatterConfig: { ...editedSymbol.scatterConfig!, freeSpinCount: Number(e.target.value) }
+                })}
+                className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+              />
             </div>
           </div>
-        ))}
-      </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-surface-300">
+              <input
+                type="checkbox"
+                checked={editedSymbol.scatterConfig.enableRetrigger}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  scatterConfig: { ...editedSymbol.scatterConfig!, enableRetrigger: e.target.checked }
+                })}
+                className="rounded border-surface-600"
+              />
+              啟用 Retrigger
+            </label>
+            <label className="flex items-center gap-2 text-sm text-surface-300">
+              <input
+                type="checkbox"
+                checked={editedSymbol.scatterConfig.enableMultiplier}
+                onChange={(e) => setEditedSymbol({
+                  ...editedSymbol,
+                  scatterConfig: { ...editedSymbol.scatterConfig!, enableMultiplier: e.target.checked }
+                })}
+                className="rounded border-surface-600"
+              />
+              啟用 Multiplier
+              {editedSymbol.scatterConfig.enableMultiplier && (
+                <select
+                  value={editedSymbol.scatterConfig.multiplierValue}
+                  onChange={(e) => setEditedSymbol({
+                    ...editedSymbol,
+                    scatterConfig: { ...editedSymbol.scatterConfig!, multiplierValue: Number(e.target.value) }
+                  })}
+                  className="ml-2 px-2 py-0.5 bg-surface-900 border border-surface-600 rounded text-xs text-surface-200"
+                >
+                  {[2, 3, 5, 10].map(n => <option key={n} value={n}>{n}x</option>)}
+                </select>
+              )}
+            </label>
+          </div>
+        </div>
+      )}
 
-      {/* 出現率分佈預覽 */}
-      <div style={{
-        padding: '16px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        marginBottom: '16px',
-      }}>
-        <h4 style={{
-          marginTop: 0,
-          marginBottom: '12px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
-          📊 出現率分佈
-        </h4>
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '4px',
-          fontSize: '12px',
-        }}>
-          {symbols.map((symbol) => {
-            const rate = appearanceRates[symbol.id] || 0;
-            const barWidth = Math.max(rate * 2, 2); // 最小寬度 2px，每 1% = 2px
-            return (
-              <div
-                key={symbol.id}
-                style={{
-                  marginBottom: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <span style={{ minWidth: '60px', fontSize: '12px' }}>{symbol.id}</span>
-                <div style={{
-                  flex: 1,
-                  height: '20px',
-                  backgroundColor: '#e0e0e0',
-                  borderRadius: '2px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}>
-                  <div
-                    style={{
-                      width: `${barWidth}px`,
-                      height: '100%',
-                      backgroundColor: '#3498db',
-                      borderRadius: '2px',
-                    }}
+      {/* 操作按鈕 */}
+      <div className="flex gap-2">
+        <button 
+          onClick={() => onSave(editedSymbol)}
+          className="flex-1 py-2 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-500"
+        >
+          儲存
+        </button>
+        <button 
+          onClick={onCancel}
+          className="flex-1 py-2 bg-surface-600 text-surface-300 rounded text-sm hover:bg-surface-500"
+        >
+          取消
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 新增符號表單
+ */
+interface AddSymbolFormProps {
+  onAdd: (symbol: SymbolDefinition) => void;
+  onCancel: () => void;
+}
+
+function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
+  const [newSymbol, setNewSymbol] = useState<Partial<SymbolDefinition>>({
+    name: '',
+    type: 'normal',
+    category: 'high',
+    payouts: { match3: 10, match4: 20, match5: 40 },
+    appearanceWeight: 20,
+    ngWeight: 20,
+    fgWeight: 20,
+  });
+
+  const handleAdd = () => {
+    if (!newSymbol.name) return;
+    
+    const symbol: SymbolDefinition = {
+      id: `SYM_${Date.now()}`,
+      name: newSymbol.name || '',
+      type: newSymbol.type || 'normal',
+      category: newSymbol.category || 'high',
+      payouts: newSymbol.payouts || { match3: 10, match4: 20, match5: 40 },
+      appearanceWeight: newSymbol.appearanceWeight || 20,
+      ngWeight: newSymbol.ngWeight || 20,
+      fgWeight: newSymbol.fgWeight || 20,
+    };
+    
+    if (symbol.type === 'wild') {
+      symbol.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
+    } else if (symbol.type === 'scatter') {
+      symbol.scatterConfig = {
+        triggerCount: 3,
+        freeSpinCount: 10,
+        enableRetrigger: true,
+        enableMultiplier: true,
+        multiplierValue: 2,
+      };
+    }
+    
+    onAdd(symbol);
+  };
+
+  return (
+    <div className="p-4 bg-surface-700 rounded-lg border border-green-500/50">
+      <h5 className="text-sm font-semibold text-green-400 mb-3">新增符號</h5>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="text-xs text-surface-400 block mb-1">名稱</label>
+          <input
+            value={newSymbol.name || ''}
+            onChange={(e) => setNewSymbol({ ...newSymbol, name: e.target.value })}
+            placeholder="輸入符號名稱"
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-surface-400 block mb-1">類型</label>
+          <select
+            value={newSymbol.type}
+            onChange={(e) => setNewSymbol({ ...newSymbol, type: e.target.value as SymbolType })}
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          >
+            <option value="normal">一般符號</option>
+            <option value="wild">Wild 百搭</option>
+            <option value="scatter">Scatter 分散</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button 
+          onClick={handleAdd}
+          className="flex-1 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-500"
+        >
+          新增
+        </button>
+        <button 
+          onClick={onCancel}
+          className="flex-1 py-2 bg-surface-600 text-surface-300 rounded text-sm hover:bg-surface-500"
+        >
+          取消
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 權重分佈預覽
+ */
+function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
+  const totalNGWeight = symbols.reduce((sum, s) => sum + s.ngWeight, 0);
+  const totalFGWeight = symbols.reduce((sum, s) => sum + s.fgWeight, 0);
+
+  return (
+    <div className="bg-surface-900/50 rounded-lg p-3">
+      <h5 className="text-xs font-semibold text-surface-400 mb-2">權重分佈預覽</h5>
+      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+        {symbols.map((symbol) => {
+          const ngRate = totalNGWeight > 0 ? (symbol.ngWeight / totalNGWeight) * 100 : 0;
+          const fgRate = totalFGWeight > 0 ? (symbol.fgWeight / totalFGWeight) * 100 : 0;
+          
+          return (
+            <div key={symbol.id} className="flex items-center gap-2 text-xs">
+              <span className="w-12 font-mono text-surface-300">{symbol.id}</span>
+              <div className="flex-1 flex gap-1">
+                <div className="flex-1 h-3 bg-surface-700 rounded overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500" 
+                    style={{ width: `${ngRate}%` }}
+                    title={`NG: ${ngRate.toFixed(1)}%`}
                   />
                 </div>
-                <span style={{
-                  minWidth: '50px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  textAlign: 'right',
-                }}>
-                  {rate.toFixed(1)}%
-                </span>
+                <div className="flex-1 h-3 bg-surface-700 rounded overflow-hidden">
+                  <div 
+                    className="h-full bg-purple-500" 
+                    style={{ width: `${fgRate}%` }}
+                    title={`FG: ${fgRate.toFixed(1)}%`}
+                  />
+                </div>
               </div>
-            );
-          })}
-        </div>
+              <span className="w-16 text-right text-surface-500">
+                {ngRate.toFixed(1)}% / {fgRate.toFixed(1)}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex justify-center gap-4 mt-2 text-xs text-surface-500">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-blue-500 rounded"></span> NG
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-purple-500 rounded"></span> FG
+        </span>
       </div>
     </div>
   );
