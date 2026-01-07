@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  :root {
+    /* Light mode CSS variables */
+    --color-bg-primary: theme('colors.white');
+    --color-bg-secondary: theme('colors.surface.100');
+    --color-bg-tertiary: theme('colors.surface.200');
+    --color-text-primary: theme('colors.surface.900');
+    --color-text-secondary: theme('colors.surface.600');
+    --color-text-muted: theme('colors.surface.400');
+    --color-border: theme('colors.surface.200');
+    --color-border-hover: theme('colors.surface.300');
+  }
+
+  .dark {
+    /* Dark mode CSS variables */
+    --color-bg-primary: theme('colors.surface.900');
+    --color-bg-secondary: theme('colors.surface.800');
+    --color-bg-tertiary: theme('colors.surface.700');
+    --color-text-primary: theme('colors.surface.50');
+    --color-text-secondary: theme('colors.surface.300');
+    --color-text-muted: theme('colors.surface.500');
+    --color-border: theme('colors.surface.700');
+    --color-border-hover: theme('colors.surface.600');
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-white dark:bg-surface-900 text-surface-900 dark:text-surface-50;
+    @apply transition-colors duration-200;
+  }
+
+  * {
+    @apply border-surface-200 dark:border-surface-700;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  /* Panel styles */
+  .panel {
+    @apply bg-white dark:bg-surface-800 rounded-lg shadow-panel dark:shadow-panel-dark;
+    @apply border border-surface-200 dark:border-surface-700;
+  }
+
+  /* Form input base styles */
+  .input-base {
+    @apply w-full px-3 py-2 rounded-md;
+    @apply bg-white dark:bg-surface-700;
+    @apply border border-surface-300 dark:border-surface-600;
+    @apply text-surface-900 dark:text-surface-100;
+    @apply placeholder-surface-400 dark:placeholder-surface-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply transition-colors duration-150;
+  }
+
+  .input-error {
+    @apply border-accent-error focus:ring-accent-error;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium;
+    @apply transition-all duration-150;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white;
+    @apply hover:bg-primary-700;
+    @apply focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-surface-100;
+    @apply hover:bg-surface-300 dark:hover:bg-surface-600;
+    @apply focus:ring-surface-500;
+  }
+
+  .btn-success {
+    @apply btn bg-accent-success text-white;
+    @apply hover:bg-green-600;
+    @apply focus:ring-green-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-accent-error text-white;
+    @apply hover:bg-red-600;
+    @apply focus:ring-red-500;
+  }
+
+  /* Label styles */
+  .label {
+    @apply block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1;
+  }
+
+  /* Error message styles */
+  .error-message {
+    @apply text-sm text-accent-error mt-1;
+  }
+
+  /* Wizard step indicator */
+  .wizard-step {
+    @apply flex items-center justify-center w-8 h-8 rounded-full;
+    @apply text-sm font-semibold;
+    @apply transition-all duration-200;
+  }
+
+  .wizard-step-active {
+    @apply wizard-step bg-primary-600 text-white;
+  }
+
+  .wizard-step-completed {
+    @apply wizard-step bg-accent-success text-white;
+  }
+
+  .wizard-step-pending {
+    @apply wizard-step bg-surface-200 dark:bg-surface-700 text-surface-500 dark:text-surface-400;
+  }
+
+  /* Sidebar styles */
+  .sidebar {
+    @apply bg-surface-50 dark:bg-surface-800 border-r border-surface-200 dark:border-surface-700;
+    @apply transition-all duration-300;
+  }
+
+  /* Dashboard styles */
+  .dashboard {
+    @apply bg-surface-50 dark:bg-surface-800 border-t border-surface-200 dark:border-surface-700;
+    @apply transition-all duration-300;
+  }
+
+  /* Scrollbar styles */
+  .custom-scrollbar {
+    @apply scrollbar-thin scrollbar-thumb-surface-300 dark:scrollbar-thumb-surface-600;
+    @apply scrollbar-track-transparent;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+

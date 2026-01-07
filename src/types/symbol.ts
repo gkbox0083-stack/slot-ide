@@ -1,23 +1,53 @@
 import type { SymbolId } from './board.js';
 
 /**
- * Symbol 類別
+ * Symbol 類別（僅 normal 類型使用）
  */
-export type SymbolCategory = 'high' | 'low' | 'special';
+export type SymbolCategory = 'high' | 'low';
 
 /**
- * Symbol 定義
+ * Symbol 類型
+ */
+export type SymbolType = 'normal' | 'wild' | 'scatter';
+
+/**
+ * Wild 設定
+ */
+export interface WildConfig {
+  canReplaceNormal: boolean;   // 是否可替代一般符號（預設 true）
+  canReplaceSpecial: boolean;  // 是否可替代特殊符號（預設 false）
+}
+
+/**
+ * Scatter 設定
+ */
+export interface ScatterConfig {
+  triggerCount: number;        // 觸發所需數量（預設 3）
+  freeSpinCount: number;       // 給予的 Free Spin 次數
+  enableRetrigger: boolean;    // 是否支援 Retrigger
+  enableMultiplier: boolean;   // 是否啟用 Multiplier
+  multiplierValue: number;     // Multiplier 倍率（預設 2）
+}
+
+/**
+ * Symbol 定義（V2 擴展版）
  * 包含符號種類、分數、出現機率
  */
 export interface SymbolDefinition {
   id: SymbolId;
   name: string;
-  category: SymbolCategory;
+  type: SymbolType;            // 新增：符號類型
+  category: SymbolCategory;    // 僅 normal 類型有效
   payouts: {
     match3: number;  // 3 連線分數
     match4: number;  // 4 連線分數
     match5: number;  // 5 連線分數
   };
-  appearanceWeight: number;  // 出現機率權重（控制前端出現機率）
+  // 雙層機率模型
+  appearanceWeight: number;    // 視覺層：滾動動畫用
+  ngWeight: number;            // 數學層：NG Pool 生成用
+  fgWeight: number;            // 數學層：FG Pool 生成用
+  // 特殊符號設定
+  wildConfig?: WildConfig;     // 僅 wild 類型有效
+  scatterConfig?: ScatterConfig; // 僅 scatter 類型有效
 }
-

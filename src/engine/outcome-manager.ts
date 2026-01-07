@@ -13,31 +13,35 @@ export class OutcomeManager {
   }
 
   /**
-   * 載入預設 Outcome
+   * 載入預設 Outcome（V2 支援 phase）
    */
   private loadDefaults(): void {
     this.outcomes = [
       {
         id: this.generateId(),
         name: '大獎',
+        phase: 'ng',
         multiplierRange: { min: 100, max: 500 },
         weight: 10,
       },
       {
         id: this.generateId(),
         name: '中獎',
+        phase: 'ng',
         multiplierRange: { min: 10, max: 50 },
         weight: 50,
       },
       {
         id: this.generateId(),
         name: '小獎',
+        phase: 'ng',
         multiplierRange: { min: 2, max: 5 },
         weight: 200,
       },
       {
         id: this.generateId(),
         name: '無獎',
+        phase: 'ng',
         multiplierRange: { min: 0, max: 0 },
         weight: 740,
       },
@@ -169,4 +173,3 @@ export class OutcomeManager {
     }));
   }
 }
-

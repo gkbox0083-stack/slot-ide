@@ -137,6 +137,7 @@ export function OutcomePanel() {
         max: newOutcome.maxMultiplier,
       },
       weight: newOutcome.weight,
+      phase: 'ng', // 預設為 Normal Game
     });
 
     setHasChanges(true);

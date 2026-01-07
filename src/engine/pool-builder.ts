@@ -1,4 +1,4 @@
-import type { Board } from '../types/board.js';
+import type { Board, BoardConfig } from '../types/board.js';
 import type { SymbolId } from '../types/board.js';
 import type { OutcomeManager } from './outcome-manager.js';
 import type { SymbolManager } from './symbol-manager.js';
@@ -41,12 +41,29 @@ export class PoolBuilder {
   private pools: Map<string, Pool> = new Map();
   private defaultCap: number = 100;
   private readonly maxCap: number = 1000;
+  private boardConfig: BoardConfig = { cols: 5, rows: 3 };
 
   constructor(
     private outcomeManager: OutcomeManager,
     private symbolManager: SymbolManager,
     private linesManager: LinesManager
   ) {}
+
+  /**
+   * 設定盤面配置（V2 新增）
+   */
+  setBoardConfig(config: BoardConfig): void {
+    this.boardConfig = config;
+    // 切換盤面配置時清空現有盤池
+    this.pools.clear();
+  }
+
+  /**
+   * 取得當前盤面配置
+   */
+  getBoardConfig(): BoardConfig {
+    return { ...this.boardConfig };
+  }
 
   /**
    * 為所有 Outcome 建立盤池
@@ -124,14 +141,15 @@ export class PoolBuilder {
   }
 
   /**
-   * 生成隨機盤面（5x3）
+   * 生成隨機盤面（支援 5x3 和 5x4）
    */
   private generateRandomBoard(): Board {
+    const { cols, rows } = this.boardConfig;
     const reels: SymbolId[][] = [];
 
-      for (let col = 0; col < 5; col++) {
+    for (let col = 0; col < cols; col++) {
       const reel: SymbolId[] = [];
-      for (let row = 0; row < 3; row++) {
+      for (let row = 0; row < rows; row++) {
         reel.push(this.symbolManager.drawSymbol());
       }
       reels.push(reel);
@@ -139,8 +157,8 @@ export class PoolBuilder {
 
     return {
       reels,
-      cols: 5,
-      rows: 3,
+      cols,
+      rows,
     };
   }
 
@@ -180,14 +198,23 @@ export class PoolBuilder {
       return null;
     }
 
+    // 過濾掉超出當前盤面範圍的位置
+    const validPositions = positions.filter(([col, row]) => 
+      col < board.cols && row < board.rows
+    );
+
+    if (validPositions.length < 3) {
+      return null; // 不足 3 個有效位置，無法成獎
+    }
+
     // 取得第一個符號
-    const firstPos = positions[0];
+    const firstPos = validPositions[0];
     const firstSymbol = board.reels[firstPos[0]][firstPos[1]];
     let count = 1;
 
     // 從左到右檢查連續相同符號
-    for (let i = 1; i < positions.length; i++) {
-      const pos = positions[i];
+    for (let i = 1; i < validPositions.length; i++) {
+      const pos = validPositions[i];
       const symbol = board.reels[pos[0]][pos[1]];
 
       if (symbol === firstSymbol) {

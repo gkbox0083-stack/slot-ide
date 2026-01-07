@@ -1,10 +1,10 @@
 import { IDEProvider } from './store/index.jsx';
-import { IDELayout } from './ide/index.js';
+import { IDELayoutV2 } from './ide/index.js';
 
 function App() {
   return (
     <IDEProvider>
-      <IDELayout />
+      <IDELayoutV2 />
     </IDEProvider>
   );
 }

@@ -3,10 +3,11 @@ import type { VisualConfig, AssetsPatch } from '../types/visual.js';
 import type { OutcomeManager } from './outcome-manager.js';
 import type { PoolBuilder } from './pool-builder.js';
 import type { Settlement } from './settlement.js';
+import type { FreeSpinMode } from '../types/free-spin.js';
 
 /**
  * SpinExecutor
- * 執行單次 Spin，返回完整 SpinPacket
+ * 執行單次 Spin，返回完整 SpinPacket（V2 支援 Free Spin）
  */
 export class SpinExecutor {
   constructor(
@@ -16,11 +17,18 @@ export class SpinExecutor {
   ) {}
 
   /**
-   * 執行單次 Spin，返回完整 SpinPacket
+   * 執行單次 Spin，返回完整 SpinPacket（V2 擴展）
    * @param visual 視覺配置
    * @param assets 素材覆蓋（可選）
+   * @param phase 遊戲階段
+   * @param multiplier Multiplier 倍率
    */
-  spin(visual: VisualConfig, assets?: AssetsPatch): SpinPacket {
+  spin(
+    visual: VisualConfig, 
+    assets?: AssetsPatch,
+    phase: FreeSpinMode = 'base',
+    multiplier: number = 1
+  ): SpinPacket {
     // 1. 檢查盤池是否已建立
     if (!this.isReady()) {
       throw new Error('請先執行 buildPools() 建立盤池');
@@ -35,12 +43,12 @@ export class SpinExecutor {
       throw new Error(`Outcome「${outcome.name}」的盤池為空，請重新建立盤池`);
     }
 
-    // 4. 結算
-    const meta = this.settlement.settle(board, outcome.id);
+    // 4. 結算（V2 支援 Wild 和 phase）
+    const meta = this.settlement.settle(board, outcome.id, phase, multiplier);
 
-    // 5. 組裝 SpinPacket
+    // 5. 組裝 SpinPacket（V2）
     return {
-      version: '1',
+      version: '2',
       board,
       visual,
       assets,
@@ -77,4 +85,3 @@ export class SpinExecutor {
     };
   }
 }
-
