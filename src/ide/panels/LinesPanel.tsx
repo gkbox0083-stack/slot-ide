@@ -1,255 +1,413 @@
-import { useState, useEffect } from 'react';
-import { linesManager } from '../../engine/index.js';
+import { useState, useCallback } from 'react';
+import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import type { LinePattern } from '../../types/lines.js';
 
+const MAX_LINES = 50;
+
 /**
- * LinesPanel Lines 設定面板
+ * LinesPanel Pay Lines 視覺化編輯器（V2）
+ * 支援點擊格子設定線路、最多 50 條線
  */
 export function LinesPanel() {
-  const [patterns, setPatterns] = useState<LinePattern[]>([]);
-  const [lineCount, setLineCount] = useState<number>(0);
-  const [expandedLines, setExpandedLines] = useState<Set<number>>(new Set());
+  const { boardConfig, linesConfig, setLinesConfig } = useGameConfigStore();
+  const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingPositions, setEditingPositions] = useState<[number, number][]>([]);
 
-  // 載入 Lines
-  const loadLines = () => {
-    const config = linesManager.getConfig();
-    setPatterns(config.patterns);
-    setLineCount(config.count);
-  };
+  const { cols, rows } = boardConfig;
 
-  useEffect(() => {
-    loadLines();
-  }, []);
-
-  // 切換展開/收起
-  const toggleExpand = (lineId: number) => {
-    const newExpanded = new Set(expandedLines);
-    if (newExpanded.has(lineId)) {
-      newExpanded.delete(lineId);
+  // 開始編輯線路
+  const startEditLine = (index: number | null) => {
+    if (index === null) {
+      // 新增線路
+      setEditingPositions([]);
     } else {
-      newExpanded.add(lineId);
+      // 編輯現有線路
+      const pattern = linesConfig.patterns[index];
+      if (pattern) {
+        setEditingPositions([...pattern.positions] as [number, number][]);
+      }
     }
-    setExpandedLines(newExpanded);
+    setSelectedLineIndex(index);
+    setIsEditing(true);
   };
 
-  // 渲染單條線的視覺化
-  const renderLineVisualization = (pattern: LinePattern) => {
-    // 建立 5x3 的盤面
-    const board: boolean[][] = [];
-    for (let row = 0; row < 3; row++) {
-      board[row] = [];
-      for (let col = 0; col < 5; col++) {
-        board[row][col] = false;
-      }
+  // 點擊格子
+  const handleCellClick = useCallback((col: number, row: number) => {
+    if (!isEditing) return;
+
+    // 檢查該列是否已有位置
+    const existingIndex = editingPositions.findIndex(([c]) => c === col);
+    
+    if (existingIndex !== -1) {
+      // 更新現有位置
+      const newPositions = [...editingPositions];
+      newPositions[existingIndex] = [col, row];
+      setEditingPositions(newPositions);
+    } else {
+      // 新增位置（按列排序）
+      const newPositions = [...editingPositions, [col, row] as [number, number]];
+      newPositions.sort((a, b) => a[0] - b[0]);
+      setEditingPositions(newPositions);
+    }
+  }, [isEditing, editingPositions]);
+
+  // 儲存線路
+  const saveLine = () => {
+    if (editingPositions.length !== cols) {
+      alert(`線路必須經過所有 ${cols} 列`);
+      return;
     }
 
-    // 標記線條經過的位置
-    pattern.positions.forEach(([col, row]) => {
-      if (row >= 0 && row < 3 && col >= 0 && col < 5) {
-        board[row][col] = true;
+    const newPattern: LinePattern = {
+      id: selectedLineIndex !== null 
+        ? linesConfig.patterns[selectedLineIndex].id 
+        : linesConfig.patterns.length + 1,
+      positions: editingPositions,
+    };
+
+    const newPatterns = [...linesConfig.patterns];
+    if (selectedLineIndex !== null) {
+      newPatterns[selectedLineIndex] = newPattern;
+    } else {
+      if (newPatterns.length >= MAX_LINES) {
+        alert(`最多只能設定 ${MAX_LINES} 條線`);
+        return;
       }
+      newPatterns.push(newPattern);
+    }
+
+    setLinesConfig({
+      count: newPatterns.length,
+      patterns: newPatterns,
     });
 
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        fontSize: '11px',
-        fontFamily: 'monospace',
-      }}>
-        {/* 列標題 */}
-        <div style={{
-          display: 'flex',
-          gap: '4px',
-          paddingLeft: '40px',
-        }}>
-          {[0, 1, 2, 3, 4].map((col) => (
-            <span key={col} style={{ width: '24px', textAlign: 'center', fontSize: '10px', color: '#999' }}>
-              Col{col}
-            </span>
-          ))}
-        </div>
-
-        {/* 盤面 */}
-        {[0, 1, 2].map((row) => (
-          <div key={row} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            <span style={{ width: '36px', fontSize: '10px', color: '#999' }}>Row{row}</span>
-            {[0, 1, 2, 3, 4].map((col) => (
-              <div
-                key={col}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid #ddd',
-                  backgroundColor: board[row][col] ? '#3498db' : '#f8f9fa',
-                  color: board[row][col] ? 'white' : '#999',
-                  borderRadius: '2px',
-                  fontSize: '10px',
-                  fontWeight: board[row][col] ? 'bold' : 'normal',
-                }}
-              >
-                {board[row][col] ? '●' : ' '}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
+    setIsEditing(false);
+    setSelectedLineIndex(null);
+    setEditingPositions([]);
   };
 
-  // 取得線條描述
-  const getLineDescription = (pattern: LinePattern): string => {
-    const positions = pattern.positions;
+  // 刪除線路
+  const deleteLine = (index: number) => {
+    if (linesConfig.patterns.length <= 1) {
+      alert('至少需要保留 1 條線');
+      return;
+    }
     
-    // 檢查是否為橫線
-    const allSameRow = positions.every(([, row]) => row === positions[0][1]);
-    if (allSameRow) {
-      const row = positions[0][1];
-      if (row === 0) return '(上面橫線)';
-      if (row === 1) return '(中間橫線)';
-      if (row === 2) return '(下面橫線)';
-    }
-
-    // 檢查是否為 V 形
-    if (positions[0][1] === 0 && positions[2][1] === 2 && positions[4][1] === 0) {
-      return '(V 形)';
-    }
-
-    // 檢查是否為倒 V 形
-    if (positions[0][1] === 2 && positions[2][1] === 0 && positions[4][1] === 2) {
-      return '(倒 V 形)';
-    }
-
-    // 其他模式
-    return '(自訂模式)';
+    const newPatterns = linesConfig.patterns.filter((_, i) => i !== index);
+    // 重新編號
+    newPatterns.forEach((p, i) => { p.id = i + 1; });
+    
+    setLinesConfig({
+      count: newPatterns.length,
+      patterns: newPatterns,
+    });
   };
+
+  // 取消編輯
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setSelectedLineIndex(null);
+    setEditingPositions([]);
+  };
+
+  // 清除編輯中的位置
+  const clearEditingPositions = () => {
+    setEditingPositions([]);
+  };
+
+  // 預覽選中的線路
+  const previewLine = selectedLineIndex !== null && !isEditing
+    ? linesConfig.patterns[selectedLineIndex]?.positions
+    : null;
 
   return (
-    <div style={{
-      padding: '16px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '4px',
-      border: '1px solid #ddd',
-    }}>
-      <h3 style={{
-        marginTop: 0,
-        marginBottom: '16px',
-        fontSize: '16px',
-        fontWeight: 'bold',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}>
-        📐 Lines 設定
-      </h3>
-
-      {/* 目前線數 */}
-      <div style={{
-        marginBottom: '20px',
-        padding: '12px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        fontSize: '14px',
-      }}>
-        目前線數: <strong>{lineCount}</strong> 條
+    <div className="space-y-4">
+      {/* 線數資訊 */}
+      <div className="p-3 bg-surface-900/50 rounded-lg flex justify-between items-center">
+        <span className="text-sm text-surface-400">
+          線數: <span className="text-surface-200 font-semibold">{linesConfig.count}</span> / {MAX_LINES}
+        </span>
+        <span className="text-xs text-surface-500">
+          盤面: {cols}×{rows}
+        </span>
       </div>
 
-      {/* 線條預覽 */}
-      <div style={{
-        padding: '16px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        marginBottom: '16px',
-      }}>
-        <h4 style={{
-          marginTop: 0,
-          marginBottom: '16px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-        }}>
-          ┌─ 線條預覽 ───────────────────────────────────────────┐
-        </h4>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {patterns.map((pattern) => {
-            const isExpanded = expandedLines.has(pattern.id);
-            const description = getLineDescription(pattern);
-
-            return (
-              <div
-                key={pattern.id}
-                style={{
-                  padding: '12px',
-                  backgroundColor: '#f8f9fa',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '4px',
-                }}
-              >
-                {/* 線條標題與展開按鈕 */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: isExpanded ? '12px' : 0,
-                  cursor: 'pointer',
-                }}
-                onClick={() => toggleExpand(pattern.id)}
+      {/* 視覺化編輯器 */}
+      <div className="relative bg-surface-900 rounded-lg p-3">
+        <h5 className="text-xs font-semibold text-surface-400 mb-2">
+          {isEditing ? '🖊️ 編輯中 - 點擊格子設定線路' : '📐 盤面預覽'}
+        </h5>
+        
+        <div 
+          className="grid gap-1 mx-auto"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            maxWidth: '280px',
+          }}
+        >
+          {Array.from({ length: rows }, (_, row) =>
+            Array.from({ length: cols }, (_, col) => {
+              const isInEditingLine = editingPositions.some(
+                ([c, r]) => c === col && r === row
+              );
+              const isInPreviewLine = previewLine?.some(
+                ([c, r]) => c === col && r === row
+              );
+              const editingOrder = editingPositions.findIndex(([c]) => c === col);
+              
+              return (
+                <div
+                  key={`${col}-${row}`}
+                  onClick={() => handleCellClick(col, row)}
+                  className={`
+                    aspect-square rounded flex flex-col items-center justify-center text-xs
+                    transition-all duration-150
+                    ${isEditing ? 'cursor-pointer hover:bg-surface-600' : 'cursor-default'}
+                    ${isInEditingLine 
+                      ? 'bg-primary-600 text-white' 
+                      : isInPreviewLine
+                        ? 'bg-green-700 text-white'
+                        : 'bg-surface-800 text-surface-500'
+                    }
+                  `}
                 >
-                  <div style={{
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}>
-                    <span>{isExpanded ? '▼' : '▶'}</span>
-                    <span>Line {pattern.id}: {description}</span>
-                  </div>
+                  <span className="text-[10px] opacity-60">{col},{row}</span>
+                  {isInEditingLine && (
+                    <span className="font-bold text-sm">{editingOrder + 1}</span>
+                  )}
                 </div>
-
-                {/* 展開的視覺化 */}
-                {isExpanded && (
-                  <div style={{
-                    marginTop: '12px',
-                    padding: '12px',
-                    backgroundColor: 'white',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                  }}>
-                    {renderLineVisualization(pattern)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          ).flat()}
         </div>
 
-        <div style={{
-          marginTop: '16px',
-          fontSize: '12px',
-          color: '#666',
-        }}>
-          └────────────────────────────────────────────────────────┘
+        {/* 線路連線預覽 SVG */}
+        {(isEditing && editingPositions.length > 1) && (
+          <svg 
+            className="absolute inset-3 pointer-events-none"
+            viewBox={`0 0 ${cols * 50} ${rows * 50}`}
+            preserveAspectRatio="none"
+          >
+            <polyline
+              points={editingPositions.map(([col, row]) => 
+                `${col * 50 + 25},${row * 50 + 25}`
+              ).join(' ')}
+              fill="none"
+              stroke="#6366f1"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </div>
+
+      {/* 編輯操作 */}
+      {isEditing ? (
+        <div className="p-3 bg-primary-900/30 border border-primary-700/50 rounded-lg space-y-3">
+          <div className="text-sm text-surface-300">
+            已設定: <span className={`font-bold ${
+              editingPositions.length === cols ? 'text-green-400' : 'text-yellow-400'
+            }`}>
+              {editingPositions.length} / {cols}
+            </span> 列
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={saveLine} 
+              disabled={editingPositions.length !== cols}
+              className="flex-1 py-2 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              儲存
+            </button>
+            <button 
+              onClick={clearEditingPositions}
+              className="py-2 px-3 bg-surface-700 text-surface-300 rounded text-sm hover:bg-surface-600"
+            >
+              清除
+            </button>
+            <button 
+              onClick={cancelEdit}
+              className="py-2 px-3 bg-surface-700 text-surface-300 rounded text-sm hover:bg-surface-600"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button 
+          onClick={() => startEditLine(null)}
+          disabled={linesConfig.patterns.length >= MAX_LINES}
+          className="w-full py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          + 新增線路
+        </button>
+      )}
+
+      {/* 線路列表 */}
+      <div className="bg-surface-900/50 rounded-lg p-3">
+        <h5 className="text-xs font-semibold text-surface-400 mb-2">線路列表</h5>
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {linesConfig.patterns.map((pattern, index) => (
+            <div 
+              key={pattern.id}
+              onClick={() => !isEditing && setSelectedLineIndex(selectedLineIndex === index ? null : index)}
+              className={`
+                p-2 rounded flex items-center justify-between text-xs cursor-pointer
+                transition-colors
+                ${selectedLineIndex === index 
+                  ? 'bg-primary-900/30 border border-primary-700/50' 
+                  : 'bg-surface-800 hover:bg-surface-700'
+                }
+              `}
+            >
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-surface-400">#{pattern.id}</span>
+                <span className="text-surface-300 truncate max-w-[120px]">
+                  {pattern.positions.map(([c, r]) => `[${c},${r}]`).join('→')}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); startEditLine(index); }}
+                  disabled={isEditing}
+                  className="px-2 py-1 bg-surface-600 text-surface-300 rounded hover:bg-surface-500 disabled:opacity-50"
+                >
+                  ✏️
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); deleteLine(index); }}
+                  disabled={isEditing || linesConfig.patterns.length <= 1}
+                  className="px-2 py-1 bg-red-900/50 text-red-300 rounded hover:bg-red-800 disabled:opacity-50"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 提示 */}
-      <div style={{
-        padding: '12px',
-        backgroundColor: '#e3f2fd',
-        border: '1px solid #90caf9',
-        borderRadius: '4px',
-        fontSize: '13px',
-        color: '#1565c0',
-      }}>
-        ℹ️ 線條配置為預設值，Phase 6 可自訂
+      {/* 快速預設 */}
+      <div className="bg-surface-900/50 rounded-lg p-3">
+        <h5 className="text-xs font-semibold text-surface-400 mb-2">快速設定</h5>
+        <div className="grid grid-cols-3 gap-2">
+          <button 
+            onClick={() => applyPreset(5, setLinesConfig, rows)}
+            disabled={isEditing}
+            className="py-2 bg-surface-700 text-surface-300 text-xs rounded hover:bg-surface-600 disabled:opacity-50"
+          >
+            5 線
+          </button>
+          <button 
+            onClick={() => applyPreset(10, setLinesConfig, rows)}
+            disabled={isEditing}
+            className="py-2 bg-surface-700 text-surface-300 text-xs rounded hover:bg-surface-600 disabled:opacity-50"
+          >
+            10 線
+          </button>
+          <button 
+            onClick={() => applyPreset(20, setLinesConfig, rows)}
+            disabled={isEditing}
+            className="py-2 bg-surface-700 text-surface-300 text-xs rounded hover:bg-surface-600 disabled:opacity-50"
+          >
+            20 線
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+/**
+ * 套用預設線路配置
+ */
+function applyPreset(
+  count: number, 
+  setLinesConfig: (config: { count: number; patterns: LinePattern[] }) => void,
+  rows: number
+) {
+  const patterns: LinePattern[] = [];
+  
+  // 基本 5 條線（適用於 3 行和 4 行）
+  if (count >= 5) {
+    // 中間橫線
+    patterns.push({ id: 1, positions: rows === 3 
+      ? [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1]]
+      : [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1]]
+    });
+    // 上面橫線
+    patterns.push({ id: 2, positions: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]] });
+    // 下面橫線
+    patterns.push({ id: 3, positions: rows === 3
+      ? [[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]
+      : [[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]]
+    });
+    // V 形
+    patterns.push({ id: 4, positions: rows === 3
+      ? [[0, 0], [1, 1], [2, 2], [3, 1], [4, 0]]
+      : [[0, 0], [1, 1], [2, 2], [3, 1], [4, 0]]
+    });
+    // 倒 V 形
+    patterns.push({ id: 5, positions: rows === 3
+      ? [[0, 2], [1, 1], [2, 0], [3, 1], [4, 2]]
+      : [[0, 2], [1, 1], [2, 0], [3, 1], [4, 2]]
+    });
+  }
+
+  // 10 條線（加入更多變化）
+  if (count >= 10) {
+    patterns.push({ id: 6, positions: [[0, 0], [1, 0], [2, 1], [3, 2], [4, 2]] });
+    patterns.push({ id: 7, positions: rows === 3
+      ? [[0, 2], [1, 2], [2, 1], [3, 0], [4, 0]]
+      : [[0, 2], [1, 2], [2, 1], [3, 0], [4, 0]]
+    });
+    patterns.push({ id: 8, positions: [[0, 1], [1, 0], [2, 0], [3, 0], [4, 1]] });
+    patterns.push({ id: 9, positions: rows === 3
+      ? [[0, 1], [1, 2], [2, 2], [3, 2], [4, 1]]
+      : [[0, 1], [1, 2], [2, 2], [3, 2], [4, 1]]
+    });
+    patterns.push({ id: 10, positions: [[0, 0], [1, 1], [2, 1], [3, 1], [4, 0]] });
+  }
+
+  // 20 條線
+  if (count >= 20) {
+    patterns.push({ id: 11, positions: rows === 3
+      ? [[0, 2], [1, 1], [2, 1], [3, 1], [4, 2]]
+      : [[0, 2], [1, 1], [2, 1], [3, 1], [4, 2]]
+    });
+    patterns.push({ id: 12, positions: rows === 3
+      ? [[0, 1], [1, 0], [2, 1], [3, 2], [4, 1]]
+      : [[0, 1], [1, 0], [2, 1], [3, 2], [4, 1]]
+    });
+    patterns.push({ id: 13, positions: rows === 3
+      ? [[0, 1], [1, 2], [2, 1], [3, 0], [4, 1]]
+      : [[0, 1], [1, 2], [2, 1], [3, 0], [4, 1]]
+    });
+    patterns.push({ id: 14, positions: [[0, 0], [1, 1], [2, 0], [3, 1], [4, 0]] });
+    patterns.push({ id: 15, positions: rows === 3
+      ? [[0, 2], [1, 1], [2, 2], [3, 1], [4, 2]]
+      : [[0, 2], [1, 1], [2, 2], [3, 1], [4, 2]]
+    });
+    patterns.push({ id: 16, positions: [[0, 1], [1, 1], [2, 0], [3, 1], [4, 1]] });
+    patterns.push({ id: 17, positions: rows === 3
+      ? [[0, 1], [1, 1], [2, 2], [3, 1], [4, 1]]
+      : [[0, 1], [1, 1], [2, 2], [3, 1], [4, 1]]
+    });
+    patterns.push({ id: 18, positions: [[0, 0], [1, 0], [2, 1], [3, 0], [4, 0]] });
+    patterns.push({ id: 19, positions: rows === 3
+      ? [[0, 2], [1, 2], [2, 1], [3, 2], [4, 2]]
+      : [[0, 2], [1, 2], [2, 1], [3, 2], [4, 2]]
+    });
+    patterns.push({ id: 20, positions: rows === 3
+      ? [[0, 0], [1, 2], [2, 0], [3, 2], [4, 0]]
+      : [[0, 0], [1, 2], [2, 0], [3, 2], [4, 0]]
+    });
+  }
+
+  setLinesConfig({
+    count: patterns.length,
+    patterns,
+  });
 }
