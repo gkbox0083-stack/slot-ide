@@ -9,6 +9,7 @@ interface SimulationStoreState {
   mode: SimulationMode;
   results: SimulationStats[];
   currentIndex: number;
+  spinCount: number; // 模擬次數設定
 }
 
 interface SimulationStoreActions {
@@ -18,6 +19,7 @@ interface SimulationStoreActions {
   addResult: (stats: SimulationStats) => void;
   clearResults: () => void;
   setIsRunning: (isRunning: boolean) => void;
+  setSpinCount: (count: number) => void;
 }
 
 const initialState: SimulationStoreState = {
@@ -26,6 +28,7 @@ const initialState: SimulationStoreState = {
   mode: 'stack',
   results: [],
   currentIndex: 0,
+  spinCount: 1000, // 預設 1000 次
 };
 
 export const useSimulationStore = create<SimulationStoreState & SimulationStoreActions>()(
@@ -104,6 +107,8 @@ export const useSimulationStore = create<SimulationStoreState & SimulationStoreA
     }),
     
     setIsRunning: (isRunning) => set({ isRunning }),
+    
+    setSpinCount: (count) => set({ spinCount: count }),
   })
 );
 

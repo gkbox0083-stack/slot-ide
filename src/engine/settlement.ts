@@ -23,12 +23,14 @@ export class Settlement {
    * @param outcomeId Outcome ID
    * @param phase 遊戲階段
    * @param multiplier Multiplier 倍率（Free Spin 時使用）
+   * @param baseBet 投注金額（用於計算最終獲勝金額）
    */
   settle(
-    board: Board, 
-    outcomeId: string, 
+    board: Board,
+    outcomeId: string,
     phase: FreeSpinMode = 'base',
-    multiplier: number = 1
+    multiplier: number = 1,
+    baseBet: number = 1
   ): SettlementMeta {
     const patterns = this.linesManager.getAllPatterns();
     const winningLines: WinningLine[] = [];
@@ -49,9 +51,9 @@ export class Settlement {
       const match = this.countConsecutiveWithWild(lineSymbolIds, symbols, pattern.positions);
       
       if (match) {
-        // 取得這條線的分數
+        // 取得這條線的分數（倍率 × baseBet × multiplier）
         const basePayout = this.symbolManager.getPayout(match.symbol, match.count);
-        const payout = basePayout * multiplier;
+        const payout = basePayout * baseBet * multiplier;
         
         // 建立 WinningLine
         const winningLine: WinningLine = {

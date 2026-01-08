@@ -214,13 +214,50 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       return () => clearInterval(interval);
     }, [winningLineDisplay]);
 
-    // 當 spinPacket 改變時，重置狀態
+    // 追蹤上一次的 board 資料（用於檢測是否為新的 spin）
+    const prevBoardRef = useRef<string | null>(null);
+    // 追蹤是否是組件首次渲染（用於區分頁面載入 vs 用戶觸發）
+    const isFirstRenderRef = useRef(true);
+
+    // 當 spinPacket 改變時，檢測是否需要自動啟動動畫
     useEffect(() => {
-      if (spinPacket) {
-        setReelStates(['idle', 'idle', 'idle', 'idle', 'idle']);
+      // 首次渲染時：顯示盤面但不觸發動畫（頁面載入恢復狀態）
+      if (isFirstRenderRef.current) {
+        isFirstRenderRef.current = false;
+        if (spinPacket && spinPacket.board) {
+          prevBoardRef.current = JSON.stringify(spinPacket.board);
+          setReelStates(['stopped', 'stopped', 'stopped', 'stopped', 'stopped']);
+          setWinningLineDisplay(null);
+          isSpinningRef.current = false;
+        }
+        return;
+      }
+
+      // 後續渲染：檢查 board 是否變化
+      if (!spinPacket || !spinPacket.board) {
+        prevBoardRef.current = null;
+        return;
+      }
+
+      // 將當前 board 序列化為字串以進行比較
+      const currentBoardStr = JSON.stringify(spinPacket.board);
+      const prevBoardStr = prevBoardRef.current;
+
+      // 更新 ref
+      prevBoardRef.current = currentBoardStr;
+
+      // 如果 board 資料有變化，代表這是用戶觸發的新 spin，自動啟動動畫
+      if (prevBoardStr !== currentBoardStr) {
+        // 先重置狀態
         setWinningLineDisplay(null);
-        isSpinningRef.current = false;
         clearAllTimers();
+        
+        // 使用 setTimeout 確保狀態更新後再啟動動畫
+        const timer = setTimeout(() => {
+          startSpin();
+        }, 50);
+        
+        return () => clearTimeout(timer);
       }
     }, [spinPacket]);
 
@@ -304,7 +341,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
     const reelWidth = symbolSize * visual.layout.symbolScale;
     const reelGap = visual.layout.reelGap;
     const boardWidth = (reelWidth * 5 + reelGap * 4) * visual.layout.boardScale;
-    const boardHeight = (symbolHeight * 3) * visual.layout.boardScale;
+    const boardHeight = (symbolHeight * board.rows) * visual.layout.boardScale;
 
     // 外層容器（包含背景）
     const outerContainerStyle: React.CSSProperties = {

@@ -1,15 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { useIDE } from '../../store/index.jsx';
+import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import { symbolManager } from '../../engine/index.js';
 import type { SymbolId } from '../../types/board.js';
 import { fileToDataUrl, saveSymbolImage, removeSymbolImage, saveOtherAsset, removeOtherAsset, clearAssets, loadAssets } from '../../utils/index.js';
-import type { AssetsPatch } from '../../types/visual.js';
 
 /**
  * AssetPanel 素材上傳面板
  */
 export function AssetPanel() {
-  const { state, dispatch } = useIDE();
+  const {
+    assets,
+    setAssets,
+    setSymbolImage,
+    removeSymbolImage: removeSymbolImageFromStore,
+    setOtherAsset,
+    removeOtherAsset: removeOtherAssetFromStore,
+    clearAllAssets
+  } = useGameConfigStore();
   const [symbols, setSymbols] = useState<SymbolId[]>([]);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -23,16 +30,15 @@ export function AssetPanel() {
   useEffect(() => {
     const stored = loadAssets();
     if (stored) {
-      const assets: AssetsPatch = {
+      setAssets({
         symbols: stored.symbols,
         board: stored.board,
         frame: stored.frame,
         background: stored.background,
         character: stored.character,
-      };
-      dispatch({ type: 'LOAD_ASSETS', assets });
+      });
     }
-  }, [dispatch]);
+  }, [setAssets]);
 
   // 處理 Symbol 圖片上傳
   const handleSymbolUpload = async (symbolId: SymbolId, file: File | null) => {
@@ -41,7 +47,7 @@ export function AssetPanel() {
     try {
       const dataUrl = await fileToDataUrl(file);
       saveSymbolImage(symbolId, dataUrl);
-      dispatch({ type: 'SET_SYMBOL_IMAGE', symbolId, dataUrl });
+      setSymbolImage(symbolId, dataUrl);
     } catch (error) {
       alert(`上傳失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
     }
@@ -51,7 +57,7 @@ export function AssetPanel() {
   const handleSymbolRemove = (symbolId: SymbolId) => {
     if (confirm(`確定要清除 ${symbolId} 的圖片嗎？`)) {
       removeSymbolImage(symbolId);
-      dispatch({ type: 'REMOVE_SYMBOL_IMAGE', symbolId });
+      removeSymbolImageFromStore(symbolId);
     }
   };
 
@@ -65,7 +71,7 @@ export function AssetPanel() {
     try {
       const dataUrl = await fileToDataUrl(file);
       saveOtherAsset(key, dataUrl);
-      dispatch({ type: 'SET_OTHER_ASSET', key, dataUrl });
+      setOtherAsset(key, dataUrl);
     } catch (error) {
       alert(`上傳失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
     }
@@ -81,7 +87,7 @@ export function AssetPanel() {
     };
     if (confirm(`確定要清除 ${keyNames[key]} 嗎？`)) {
       removeOtherAsset(key);
-      dispatch({ type: 'REMOVE_OTHER_ASSET', key });
+      removeOtherAssetFromStore(key);
     }
   };
 
@@ -89,18 +95,18 @@ export function AssetPanel() {
   const handleClearAll = () => {
     if (confirm('確定要清除所有素材嗎？此操作無法復原。')) {
       clearAssets();
-      dispatch({ type: 'CLEAR_ALL_ASSETS' });
+      clearAllAssets();
     }
   };
 
   // 取得 Symbol 圖片 URL
   const getSymbolImageUrl = (symbolId: SymbolId): string | null => {
-    return state.assets.symbols?.[symbolId] || null;
+    return assets.symbols?.[symbolId] || null;
   };
 
   // 取得其他素材 URL
   const getOtherAssetUrl = (key: 'board' | 'frame' | 'background' | 'character'): string | null => {
-    return state.assets[key] || null;
+    return assets[key] || null;
   };
 
   // 其他素材配置

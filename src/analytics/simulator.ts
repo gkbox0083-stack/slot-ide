@@ -61,7 +61,7 @@ export class Simulator {
 
     for (let i = 0; i < config.count; i++) {
       // 使用 Engine 的 spin（不可自己產生亂數）
-      const spinPacket = this.spinExecutor.spin(config.visualConfig);
+      const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, 'base', 1, config.baseBet);
       
       const win = spinPacket.meta?.win ?? 0;
       const profit = win - config.baseBet;
@@ -114,7 +114,7 @@ export class Simulator {
         const end = Math.min(current + batchSize, config.count);
         
         for (let i = current; i < end; i++) {
-          const spinPacket = this.spinExecutor.spin(config.visualConfig);
+          const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, 'base', 1, config.baseBet);
           const win = spinPacket.meta?.win ?? 0;
           const profit = win - config.baseBet;
           cumulativeProfit += profit;

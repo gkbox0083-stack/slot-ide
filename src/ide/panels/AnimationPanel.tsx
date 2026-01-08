@@ -1,5 +1,4 @@
-import { useIDE } from '../../store/index.jsx';
-import type { VisualConfig } from '../../types/visual.js';
+import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 
 /**
  * 預設動畫參數
@@ -16,28 +15,20 @@ const defaultAnimationConfig = {
  * AnimationPanel 動態參數面板
  */
 export function AnimationPanel() {
-  const { state, dispatch } = useIDE();
-  const animation = state.visualConfig.animation;
+  const { visualConfig, updateAnimationConfig, setVisualConfig } = useGameConfigStore();
+  const animation = visualConfig.animation;
 
   // 更新動畫參數
   const updateAnimation = (field: keyof typeof animation, value: number) => {
-    const newConfig: VisualConfig = {
-      ...state.visualConfig,
-      animation: {
-        ...state.visualConfig.animation,
-        [field]: value,
-      },
-    };
-    dispatch({ type: 'SET_VISUAL_CONFIG', payload: newConfig });
+    updateAnimationConfig({ [field]: value });
   };
 
   // 重置為預設值
   const handleReset = () => {
-    const newConfig: VisualConfig = {
-      ...state.visualConfig,
+    setVisualConfig({
+      ...visualConfig,
       animation: { ...defaultAnimationConfig },
-    };
-    dispatch({ type: 'SET_VISUAL_CONFIG', payload: newConfig });
+    });
   };
 
   // Slider 元件

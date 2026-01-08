@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import { poolBuilder, symbolManager, outcomeManager } from '../../engine/index.js';
 import type { BoardRows } from '../../types/board.js';
@@ -14,6 +14,8 @@ export function PoolPanel() {
     symbols,
     outcomeConfig,
     freeSpinConfig,
+    isPoolsBuilt,
+    setIsPoolsBuilt,
   } = useGameConfigStore();
   
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -21,8 +23,15 @@ export function PoolPanel() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildError, setBuildError] = useState<string | null>(null);
   const [poolStatus, setPoolStatus] = useState<{ outcomeId: string; outcomeName: string; generated: number; cap: number; isFull: boolean }[]>([]);
-  const [isPoolsBuilt, setIsPoolsBuilt] = useState(false);
   const [poolCap, setPoolCap] = useState(100);
+
+  // 同步 store 的 isPoolsBuilt 與本地狀態
+  useEffect(() => {
+    if (!isPoolsBuilt) {
+      setPoolStatus([]);
+      setBuildError(null);
+    }
+  }, [isPoolsBuilt]);
 
   const handleBoardRowsChange = (rows: BoardRows) => {
     if (isPoolsBuilt) {
@@ -38,7 +47,7 @@ export function PoolPanel() {
       // 清空 Pool
       poolBuilder.clearPools();
       setPoolStatus([]);
-      setIsPoolsBuilt(false);
+      setIsPoolsBuilt(false); // 更新 store
       setBuildError(null);
       // 更新盤面配置
       setBoardConfig({ cols: 5, rows: pendingRows });
@@ -84,11 +93,12 @@ export function PoolPanel() {
       
       if (result.success) {
         setPoolStatus(result.pools);
-        setIsPoolsBuilt(true);
+        setIsPoolsBuilt(true); // 更新 store
       } else {
         setBuildError(result.errors.join('; ') || '建立盤池失敗');
         setPoolStatus(result.pools);
-        setIsPoolsBuilt(result.pools.some(p => p.generated > 0));
+        const hasAnyPool = result.pools.some(p => p.generated > 0);
+        setIsPoolsBuilt(hasAnyPool); // 更新 store
       }
     } catch (error) {
       setBuildError(error instanceof Error ? error.message : String(error));
@@ -100,7 +110,7 @@ export function PoolPanel() {
   const handleClearPools = () => {
     poolBuilder.clearPools();
     setPoolStatus([]);
-    setIsPoolsBuilt(false);
+    setIsPoolsBuilt(false); // 更新 store
     setBuildError(null);
   };
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore.js';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import { calculateTheoreticalRTPBreakdown } from '../../engine/rtp-calculator.js';
@@ -7,10 +7,9 @@ const SPIN_COUNTS = [100, 500, 1000, 5000, 10000];
 
 /**
  * Simulation 面板
- * 顯示模擬控制、進度、累計統計
+ * 顯示模擬設定、累計統計（按下 SIM 按鈕執行模擬）
  */
 export function SimulationPanel() {
-  const [spinCount, setSpinCount] = useState(1000);
   const [customCount, setCustomCount] = useState('');
   
   const {
@@ -18,19 +17,28 @@ export function SimulationPanel() {
     progress,
     mode,
     results,
+    spinCount,
     setMode,
-    startSimulation,
-    updateProgress,
-    addResult,
+    setSpinCount,
     clearResults,
   } = useSimulationStore();
+
+  // 同步自訂模擬次數到 store
+  useEffect(() => {
+    if (customCount) {
+      const count = parseInt(customCount);
+      if (count > 0) {
+        setSpinCount(count);
+      }
+    }
+  }, [customCount, setSpinCount]);
 
   const { 
     symbols, 
     outcomeConfig, 
     freeSpinConfig, 
     boardConfig,
-    baseBet,
+    isPoolsBuilt,
   } = useGameConfigStore();
 
   // 計算理論 RTP
@@ -41,48 +49,15 @@ export function SimulationPanel() {
     boardConfig
   );
 
-  const handleStartSimulation = async () => {
-    const count = customCount ? parseInt(customCount) : spinCount;
-    
-    if (count <= 0 || isRunning) return;
-    
-    startSimulation(count);
-    
-    // 模擬進度（實際上應該是非同步執行）
-    const stats = {
-      totalSpins: count,
-      ngSpins: Math.floor(count * 0.95),
-      fgSpins: Math.floor(count * 0.05),
-      totalBet: count * baseBet,
-      totalWin: 0,
-      ngWin: 0,
-      fgWin: 0,
-      fgTriggerCount: 0,
-      hitCount: 0,
-      maxWin: 0,
-    };
-    
-    // 模擬進度更新
-    for (let i = 0; i <= 100; i += 10) {
-      updateProgress(i);
-      await new Promise(r => setTimeout(r, 100));
-    }
-    
-    // 模擬完成 - 生成隨機結果（實際應該用真正的 Spin）
-    const rtpVariance = 0.9 + Math.random() * 0.2; // 90%-110% of theoretical
-    stats.totalWin = Math.floor(stats.totalBet * (theoreticalRTP.totalRTP / 100) * rtpVariance);
-    stats.ngWin = Math.floor(stats.totalWin * 0.7);
-    stats.fgWin = stats.totalWin - stats.ngWin;
-    stats.hitCount = Math.floor(count * 0.3);
-    stats.fgTriggerCount = Math.floor(count * (theoreticalRTP.fgTriggerProbability / 100));
-    stats.maxWin = Math.floor(baseBet * (10 + Math.random() * 40));
-    
-    addResult(stats);
+  const handleSpinCountSelect = (count: number) => {
+    setSpinCount(count);
+    setCustomCount('');
   };
 
   const totalSpins = results.reduce((sum, r) => sum + r.totalSpins, 0);
-  const actualRTP = results.length > 0
-    ? (results.reduce((sum, r) => sum + r.totalWin, 0) / results.reduce((sum, r) => sum + r.totalBet, 0)) * 100
+  const totalBet = results.reduce((sum, r) => sum + r.totalBet, 0);
+  const actualRTP = totalBet > 0
+    ? (results.reduce((sum, r) => sum + r.totalWin, 0) / totalBet) * 100
     : 0;
 
   return (
@@ -121,10 +96,7 @@ export function SimulationPanel() {
           {SPIN_COUNTS.map((count) => (
             <button
               key={count}
-              onClick={() => {
-                setSpinCount(count);
-                setCustomCount('');
-              }}
+              onClick={() => handleSpinCountSelect(count)}
               className={`py-2 text-sm rounded transition-all ${
                 spinCount === count && !customCount
                   ? 'bg-primary-600 text-white'
@@ -143,8 +115,11 @@ export function SimulationPanel() {
           />
         </div>
         <div className="text-center text-surface-400 text-sm">
-          當前: <span className="text-white font-semibold">{(customCount || spinCount).toLocaleString()}</span> 次
+          當前: <span className="text-white font-semibold">{spinCount.toLocaleString()}</span> 次
         </div>
+        <p className="text-xs text-surface-500 mt-2 text-center">
+          💡 點擊上方 <span className="text-primary-400 font-semibold">📊 SIM</span> 按鈕執行模擬
+        </p>
       </div>
 
       {/* 模擬模式 */}
@@ -181,24 +156,6 @@ export function SimulationPanel() {
         </p>
       </div>
 
-      {/* 進度 */}
-      {isRunning && (
-        <div className="bg-surface-800 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-            ⏳ 進度
-          </h4>
-          <div className="relative h-4 bg-surface-700 rounded-full overflow-hidden">
-            <div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary-500 to-purple-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="text-center mt-2 text-sm text-surface-400">
-            {Math.round(progress)}%
-          </div>
-        </div>
-      )}
-
       {/* 累計統計 */}
       <div className="bg-surface-800 rounded-lg p-4">
         <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
@@ -233,14 +190,30 @@ export function SimulationPanel() {
         </button>
       </div>
 
-      {/* 開始按鈕 */}
-      <button
-        onClick={handleStartSimulation}
-        disabled={isRunning}
-        className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-lg hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg"
-      >
-        {isRunning ? '🔄 模擬中...' : '🚀 開始模擬'}
-      </button>
+      {/* Pool 未建立提示 */}
+      {!isPoolsBuilt && (
+        <div className="p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
+          <p className="text-sm text-yellow-300 flex items-center gap-2">
+            ⚠️ 請先在 Pool Tab 中建立盤池後才能進行模擬
+          </p>
+        </div>
+      )}
+
+      {/* 模擬進度 */}
+      {isRunning && (
+        <div className="p-3 bg-indigo-900/30 border border-indigo-700 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-indigo-300">模擬進行中...</span>
+            <span className="text-sm text-indigo-200 font-semibold">{progress}%</span>
+          </div>
+          <div className="h-2 bg-surface-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-indigo-500 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

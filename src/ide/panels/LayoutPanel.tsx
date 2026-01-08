@@ -1,5 +1,4 @@
-import { useIDE } from '../../store/index.jsx';
-import type { VisualConfig } from '../../types/visual.js';
+import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 
 /**
  * 預設佈局參數
@@ -14,28 +13,20 @@ const defaultLayoutConfig = {
  * LayoutPanel 盤面視覺面板
  */
 export function LayoutPanel() {
-  const { state, dispatch } = useIDE();
-  const layout = state.visualConfig.layout;
+  const { visualConfig, updateLayoutConfig, setVisualConfig } = useGameConfigStore();
+  const layout = visualConfig.layout;
 
   // 更新佈局參數
   const updateLayout = (field: keyof typeof layout, value: number) => {
-    const newConfig: VisualConfig = {
-      ...state.visualConfig,
-      layout: {
-        ...state.visualConfig.layout,
-        [field]: value,
-      },
-    };
-    dispatch({ type: 'SET_VISUAL_CONFIG', payload: newConfig });
+    updateLayoutConfig({ [field]: value });
   };
 
   // 重置為預設值
   const handleReset = () => {
-    const newConfig: VisualConfig = {
-      ...state.visualConfig,
+    setVisualConfig({
+      ...visualConfig,
       layout: { ...defaultLayoutConfig },
-    };
-    dispatch({ type: 'SET_VISUAL_CONFIG', payload: newConfig });
+    });
   };
 
   // Slider 元件

@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { SlotMachine } from '../../runtime/index.js';
 import type { SlotMachineRef } from '../../runtime/index.js';
 import type { SpinPacket } from '../../types/spin-packet.js';
@@ -25,6 +25,7 @@ import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
  */
 export function IDELayoutV2() {
   const slotMachineRef = useRef<SlotMachineRef>(null);
+  const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(true);
   
   const { 
     currentSpinPacket, 
@@ -108,9 +109,28 @@ export function IDELayoutV2() {
         </aside>
       </main>
 
-      {/* 底部 Statistics Panel */}
-      <footer className="shrink-0">
-        <StatisticsPanelV2 />
+      {/* 底部 Statistics Panel (可收合) */}
+      <footer className="shrink-0 border-t border-surface-700 bg-surface-900">
+        {/* 收合/展開按鈕 */}
+        <button
+          type="button"
+          onClick={() => setIsStatsPanelOpen(!isStatsPanelOpen)}
+          className="w-full py-2 px-4 flex items-center justify-center gap-2 text-surface-400 hover:text-surface-200 hover:bg-surface-800 transition-colors text-sm"
+        >
+          <span className={`transition-transform duration-200 ${isStatsPanelOpen ? '' : 'rotate-180'}`}>
+            ▼
+          </span>
+          <span>{isStatsPanelOpen ? '收合統計' : '展開統計'}</span>
+        </button>
+        
+        {/* 統計內容 - 可收合區域 */}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+            isStatsPanelOpen ? 'max-h-[300px]' : 'max-h-0'
+          }`}
+        >
+          <StatisticsPanelV2 />
+        </div>
       </footer>
     </div>
   );

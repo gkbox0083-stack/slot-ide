@@ -28,7 +28,7 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
   // Build Pools
   const handleBuildPools = () => {
     setBuildError(null);
-    
+
     if (poolCap < 1 || poolCap > 1000) {
       setBuildError('盤池上限必須在 1-1000 之間');
       return;
@@ -36,7 +36,7 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
 
     try {
       const result = poolBuilder.buildPools(poolCap);
-      
+
       if (result.success) {
         dispatch({ type: 'SET_POOLS_BUILT', payload: { status: result.pools } });
         if (result.errors.length > 0) {
@@ -60,17 +60,12 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
     try {
       const visual = state.visualConfig;
       const assets = Object.keys(state.assets).length > 0 ? state.assets : undefined;
-      const newSpinPacket = spinExecutor.spin(visual, assets);
-      
+      const newSpinPacket = spinExecutor.spin(visual, assets, 'base', 1, state.baseBet);
+
       dispatch({ type: 'SET_SPIN_PACKET', payload: newSpinPacket });
       dispatch({ type: 'SET_SPINNING', payload: true });
 
-      // 等待一下讓 SlotMachine 接收新的 spinPacket，然後觸發動畫
-      setTimeout(() => {
-        if (slotMachineRef.current) {
-          slotMachineRef.current.startSpin();
-        }
-      }, 100);
+      // SlotMachine 會透過 useEffect 監聽 spinPacket 變化自動啟動動畫
     } catch (error) {
       // Spin 失敗時靜默處理（未來可加入錯誤提示）
     }
@@ -171,9 +166,9 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
   // 匯出處理
   const handleExport = (type: 'detail' | 'summary' | 'combined') => {
     if (!state.simulationResult) return;
-    
+
     setShowExportMenu(false);
-    
+
     switch (type) {
       case 'detail':
         exportDetailCSV(state.simulationResult);
@@ -487,7 +482,7 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
             >
               📁 匯出 CSV ▼
             </button>
-            
+
             {showExportMenu && state.simulationResult && (
               <div
                 ref={exportMenuRef}
@@ -596,10 +591,10 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
         borderRadius: '4px',
         border: '1px solid #ddd',
       }}>
-        <h3 style={{ 
-          marginTop: 0, 
-          marginBottom: '16px', 
-          fontSize: '16px', 
+        <h3 style={{
+          marginTop: 0,
+          marginBottom: '16px',
+          fontSize: '16px',
           fontWeight: 'bold',
           display: 'flex',
           alignItems: 'center',
@@ -610,11 +605,11 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
 
         {/* 盤池上限輸入 */}
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '4px', 
-            fontSize: '14px', 
-            color: '#666' 
+          <label style={{
+            display: 'block',
+            marginBottom: '4px',
+            fontSize: '14px',
+            color: '#666'
           }}>
             盤池上限:
           </label>
@@ -659,8 +654,8 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
         </button>
 
         {/* 狀態顯示 */}
-        <div style={{ 
-          marginBottom: '12px', 
+        <div style={{
+          marginBottom: '12px',
           fontSize: '14px',
           fontWeight: state.isPoolsBuilt ? 'bold' : 'normal',
           color: state.isPoolsBuilt ? '#2ecc71' : '#e74c3c',
@@ -692,8 +687,8 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
             borderRadius: '4px',
             fontSize: '13px',
           }}>
-            <div style={{ 
-              marginBottom: '8px', 
+            <div style={{
+              marginBottom: '8px',
               fontWeight: 'bold',
               fontSize: '12px',
               color: '#666',
@@ -701,9 +696,9 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
               ┌─ 盤池詳情 ──────────────────────┐
             </div>
             {state.poolStatus.map((pool) => (
-              <div 
+              <div
                 key={pool.outcomeId}
-                style={{ 
+                style={{
                   marginBottom: '4px',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -711,7 +706,7 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
                 }}
               >
                 <span>{pool.outcomeName}:</span>
-                <span style={{ 
+                <span style={{
                   fontWeight: 'bold',
                   color: pool.isFull ? '#2ecc71' : '#f39c12',
                 }}>
@@ -719,7 +714,7 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
                 </span>
               </div>
             ))}
-            <div style={{ 
+            <div style={{
               marginTop: '8px',
               fontSize: '12px',
               color: '#666',
@@ -737,10 +732,10 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
         borderRadius: '4px',
         border: '1px solid #ddd',
       }}>
-        <h3 style={{ 
-          marginTop: 0, 
-          marginBottom: '16px', 
-          fontSize: '16px', 
+        <h3 style={{
+          marginTop: 0,
+          marginBottom: '16px',
+          fontSize: '16px',
           fontWeight: 'bold',
           display: 'flex',
           alignItems: 'center',
@@ -750,10 +745,10 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
         </h3>
 
         {/* 按鈕組 */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          marginBottom: '16px' 
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '16px'
         }}>
           <button
             onClick={handleSpin}
@@ -800,8 +795,8 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
             borderRadius: '4px',
             fontSize: '13px',
           }}>
-            <div style={{ 
-              marginBottom: '8px', 
+            <div style={{
+              marginBottom: '8px',
               fontWeight: 'bold',
               fontSize: '12px',
               color: '#666',
@@ -828,10 +823,10 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
         borderRadius: '4px',
         border: '1px solid #ddd',
       }}>
-        <h3 style={{ 
-          marginTop: 0, 
-          marginBottom: '16px', 
-          fontSize: '16px', 
+        <h3 style={{
+          marginTop: 0,
+          marginBottom: '16px',
+          fontSize: '16px',
           fontWeight: 'bold',
           display: 'flex',
           alignItems: 'center',
@@ -842,15 +837,15 @@ export function ControlPanel({ slotMachineRef }: ControlPanelProps) {
 
         {/* 模擬次數選擇 */}
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontSize: '14px', 
-            color: '#666' 
+          <label style={{
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            color: '#666'
           }}>
             模擬次數:
           </label>
-          
+
           {/* 預設選項 */}
           <div style={{
             display: 'flex',

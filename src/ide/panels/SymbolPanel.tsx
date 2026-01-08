@@ -24,7 +24,7 @@ export function SymbolPanel() {
       {/* 一般符號 */}
       <div className="bg-surface-900/50 rounded-lg p-3">
         <h5 className="text-xs font-semibold text-surface-400 mb-2">一般符號</h5>
-        <div className="space-y-2">
+        <div className="space-y-2" role="list" aria-label="一般符號列表">
           {normalSymbols.map((symbol) => (
             <SymbolItem
               key={symbol.id}
@@ -45,7 +45,7 @@ export function SymbolPanel() {
       {/* 特殊符號 */}
       <div className="bg-surface-900/50 rounded-lg p-3">
         <h5 className="text-xs font-semibold text-purple-400 mb-2">特殊符號</h5>
-        <div className="space-y-2">
+        <div className="space-y-2" role="list" aria-label="特殊符號列表">
           {specialSymbols.map((symbol) => (
             <SymbolItem
               key={symbol.id}
@@ -109,16 +109,20 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
 
   if (!isEditing) {
     return (
-      <div className="p-3 bg-surface-800 rounded-lg">
+      <div className="p-3 bg-surface-800 rounded-lg" role="listitem" aria-label={`符號 ${symbol.id}`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-surface-200">{symbol.id}</span>
-            <span className="text-sm text-surface-400">{symbol.name}</span>
-            <span className={`text-xs px-2 py-0.5 rounded ${
-              symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
-              symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
-              'bg-surface-600 text-surface-300'
-            }`}>
+            <span role="text" aria-label={`ID: ${symbol.id}`} className="font-mono text-sm font-bold text-surface-200">{symbol.id}</span>
+            <span role="text" aria-label={`名稱: ${symbol.name}`} className="text-sm text-surface-400">{symbol.name}</span>
+            <span 
+              role="text" 
+              aria-label={`類型: ${symbol.type}`}
+              className={`text-xs px-2 py-0.5 rounded ${
+                symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
+                symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
+                'bg-surface-600 text-surface-300'
+              }`}
+            >
               {symbol.type}
             </span>
           </div>
@@ -131,12 +135,12 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
             </button>
           </div>
         </div>
-        <div className="flex gap-4 text-xs text-surface-400">
-          <span>3連:{symbol.payouts.match3}</span>
-          <span>4連:{symbol.payouts.match4}</span>
-          <span>5連:{symbol.payouts.match5}</span>
-          <span className="text-blue-400">NG:{symbol.ngWeight}</span>
-          <span className="text-purple-400">FG:{symbol.fgWeight}</span>
+        <div className="flex gap-4 text-xs text-surface-400" role="group" aria-label="賠付與權重">
+          <span role="text">3連:{symbol.payouts.match3}</span>
+          <span role="text">4連:{symbol.payouts.match4}</span>
+          <span role="text">5連:{symbol.payouts.match5}</span>
+          <span role="text" className="text-blue-400">NG:{symbol.ngWeight}</span>
+          <span role="text" className="text-purple-400">FG:{symbol.fgWeight}</span>
         </div>
       </div>
     );
@@ -492,45 +496,62 @@ function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
   const totalFGWeight = symbols.reduce((sum, s) => sum + s.fgWeight, 0);
 
   return (
-    <div className="bg-surface-900/50 rounded-lg p-3">
+    <div className="bg-surface-900/50 rounded-lg p-3" role="region" aria-label="權重分佈預覽">
       <h5 className="text-xs font-semibold text-surface-400 mb-2">權重分佈預覽</h5>
-      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+      <div className="space-y-1.5 max-h-48 overflow-y-auto" role="list">
         {symbols.map((symbol) => {
           const ngRate = totalNGWeight > 0 ? (symbol.ngWeight / totalNGWeight) * 100 : 0;
           const fgRate = totalFGWeight > 0 ? (symbol.fgWeight / totalFGWeight) * 100 : 0;
           
           return (
-            <div key={symbol.id} className="flex items-center gap-2 text-xs">
-              <span className="w-12 font-mono text-surface-300">{symbol.id}</span>
-              <div className="flex-1 flex gap-1">
-                <div className="flex-1 h-3 bg-surface-700 rounded overflow-hidden">
+            <div 
+              key={symbol.id} 
+              className="flex items-center gap-2 text-xs" 
+              role="listitem"
+              aria-label={`${symbol.id}: NG ${ngRate.toFixed(1)}%, FG ${fgRate.toFixed(1)}%`}
+            >
+              <span role="text" className="w-12 font-mono text-surface-300">{symbol.id}</span>
+              <div className="flex-1 flex gap-1" role="group" aria-label="權重條">
+                <div 
+                  className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={ngRate}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`NG: ${ngRate.toFixed(1)}%`}
+                >
                   <div 
                     className="h-full bg-blue-500" 
                     style={{ width: `${ngRate}%` }}
-                    title={`NG: ${ngRate.toFixed(1)}%`}
                   />
                 </div>
-                <div className="flex-1 h-3 bg-surface-700 rounded overflow-hidden">
+                <div 
+                  className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={fgRate}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`FG: ${fgRate.toFixed(1)}%`}
+                >
                   <div 
                     className="h-full bg-purple-500" 
                     style={{ width: `${fgRate}%` }}
-                    title={`FG: ${fgRate.toFixed(1)}%`}
                   />
                 </div>
               </div>
-              <span className="w-16 text-right text-surface-500">
+              <span role="text" className="w-16 text-right text-surface-500">
                 {ngRate.toFixed(1)}% / {fgRate.toFixed(1)}%
               </span>
             </div>
           );
         })}
       </div>
-      <div className="flex justify-center gap-4 mt-2 text-xs text-surface-500">
+      <div className="flex justify-center gap-4 mt-2 text-xs text-surface-500" role="group" aria-label="圖例">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-blue-500 rounded"></span> NG
+          <span className="w-3 h-3 bg-blue-500 rounded" aria-hidden="true"></span> NG
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-purple-500 rounded"></span> FG
+          <span className="w-3 h-3 bg-purple-500 rounded" aria-hidden="true"></span> FG
         </span>
       </div>
     </div>
