@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type { SpinPacket, WinningLine } from '../types/spin-packet.js';
+import type { SymbolId } from '../types/board.js';
 import { Reel } from './Reel.js';
 
 /**
@@ -20,6 +21,7 @@ interface WinningLineDisplay {
  */
 export interface SlotMachineProps {
   spinPacket?: SpinPacket;
+  availableSymbols?: SymbolId[];  // 可用符號列表（用於 Reel 生成 Dummy）
   onSpinComplete?: () => void;
   onSkip?: () => void;
 }
@@ -51,7 +53,7 @@ function getHighlightedRowsForReel(
  * 整合 5 輪並接收 SpinPacket
  */
 export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
-  ({ spinPacket, onSpinComplete, onSkip }, ref) => {
+  ({ spinPacket, availableSymbols = [], onSpinComplete, onSkip }, ref) => {
     // 每輪的狀態
     const [reelStates, setReelStates] = useState<ReelState[]>([
       'idle',
@@ -67,6 +69,9 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
     // 停輪計時器引用
     const stopTimersRef = useRef<number[]>([]);
     const isSpinningRef = useRef(false);
+
+    // 追蹤上次的 reels 資料（用於傳遞 previousSymbols）
+    const prevReelsRef = useRef<SymbolId[][] | null>(null);
 
     // 預設值
     const defaultVisual = {
@@ -243,8 +248,22 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       const currentBoardStr = JSON.stringify(spinPacket.board);
       const prevBoardStr = prevBoardRef.current;
 
-      // 更新 ref
+      // 更新 refs
       prevBoardRef.current = currentBoardStr;
+
+      // 在開始新動畫前，記錄當前的 reels 作為 previousSymbols
+      // 注意：這裡使用上一次的 board.reels，不是新的
+      if (prevBoardStr !== currentBoardStr && board) {
+        // 解析舊的 board 來獲取上次的 reels
+        try {
+          const prevBoard = prevBoardStr ? JSON.parse(prevBoardStr) : null;
+          if (prevBoard && prevBoard.reels) {
+            prevReelsRef.current = prevBoard.reels;
+          }
+        } catch {
+          // 解析失敗則忽略
+        }
+      }
 
       // 如果 board 資料有變化，代表這是用戶觸發的新 spin，自動啟動動畫
       if (prevBoardStr !== currentBoardStr) {
@@ -463,6 +482,8 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
               <Reel
                 key={reelIndex}
                 symbols={reelSymbols}
+                previousSymbols={prevReelsRef.current?.[reelIndex]}
+                availableSymbols={availableSymbols}
                 assets={assets}
                 animation={visual.animation}
                 symbolSize={symbolSize}

@@ -40,8 +40,12 @@ export function IDELayoutV2() {
     currentSpinPacket,
     visualConfig,
     assets,
-    gameName
+    gameName,
+    symbols,  // 符號設定
   } = useGameConfigStore();
+
+  // 提取符號 ID 列表（用於 Reel 生成 Dummy）
+  const availableSymbolIds = useMemo(() => symbols.map(s => s.id), [symbols]);
 
   // 同步 visualConfig 和 assets 到 currentSpinPacket
   const displaySpinPacket = useMemo<SpinPacket | undefined>(() => {
@@ -98,6 +102,7 @@ export function IDELayoutV2() {
             <SlotMachine
               ref={slotMachineRef}
               spinPacket={displaySpinPacket}
+              availableSymbols={availableSymbolIds}
               onSpinComplete={() => {
                 console.log('Spin complete');
               }}
