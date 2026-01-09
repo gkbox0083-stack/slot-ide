@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react';
-import { GameParamsPanel } from '../panels/GameParamsPanel.js';
 import { OutcomePanel } from '../panels/OutcomePanel.js';
 import { SymbolPanel } from '../panels/SymbolPanel.js';
 import { LinesPanel } from '../panels/LinesPanel.js';
@@ -50,7 +49,7 @@ function CollapsibleSection({ title, icon, isExpanded, onToggle, children }: Col
  * 數值設定 Tab
  */
 function NumericSettingsTab() {
-  const [expandedSection, setExpandedSection] = useState<string | null>('params');
+  const [expandedSection, setExpandedSection] = useState<string | null>('outcomes');
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -58,14 +57,6 @@ function NumericSettingsTab() {
 
   return (
     <div className="p-2">
-      <CollapsibleSection
-        title="遊戲參數"
-        icon="⚙️"
-        isExpanded={expandedSection === 'params'}
-        onToggle={() => toggleSection('params')}
-      >
-        <GameParamsPanel />
-      </CollapsibleSection>
 
       <CollapsibleSection
         title="Outcomes (NG/FG)"
@@ -162,33 +153,30 @@ export function ControlPanelV2() {
       {/* Tab 切換器 */}
       <div className="flex border-b border-surface-700 shrink-0">
         <button
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'numeric'
-              ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
-          }`}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'numeric'
+            ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
+            : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
+            }`}
           onClick={() => setActiveTab('numeric')}
         >
           <span className="mr-1.5">🔢</span>
           數值
         </button>
         <button
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'visual'
-              ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
-          }`}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'visual'
+            ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
+            : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
+            }`}
           onClick={() => setActiveTab('visual')}
         >
           <span className="mr-1.5">🎨</span>
           視覺
         </button>
         <button
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'pool'
-              ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
-          }`}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'pool'
+            ? 'text-primary-400 bg-surface-800 border-b-2 border-primary-500'
+            : 'text-surface-400 hover:text-surface-200 hover:bg-surface-800/50'
+            }`}
           onClick={() => setActiveTab('pool')}
         >
           <span className="mr-1.5">🎲</span>

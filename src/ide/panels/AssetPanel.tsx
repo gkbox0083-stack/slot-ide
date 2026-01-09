@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
-import { symbolManager } from '../../engine/index.js';
 import type { SymbolId } from '../../types/board.js';
 import { fileToDataUrl, saveSymbolImage, removeSymbolImage, saveOtherAsset, removeOtherAsset, clearAssets, loadAssets } from '../../utils/index.js';
 
@@ -15,16 +14,10 @@ export function AssetPanel() {
     removeSymbolImage: removeSymbolImageFromStore,
     setOtherAsset,
     removeOtherAsset: removeOtherAssetFromStore,
-    clearAllAssets
+    clearAllAssets,
+    symbols
   } = useGameConfigStore();
-  const [symbols, setSymbols] = useState<SymbolId[]>([]);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-  // 載入 Symbol 列表
-  useEffect(() => {
-    const allSymbols = symbolManager.getAll();
-    setSymbols(allSymbols.map(s => s.id));
-  }, []);
 
   // 頁面載入時從 localStorage 讀取素材
   useEffect(() => {
@@ -115,11 +108,11 @@ export function AssetPanel() {
     label: string;
     description: string;
   }> = [
-    { key: 'board', label: '盤面底圖', description: '顯示在卷軸下方的底圖' },
-    { key: 'frame', label: '盤面框', description: '覆蓋在卷軸邊緣的框架' },
-    { key: 'background', label: '背景', description: '整個容器的背景圖' },
-    { key: 'character', label: '人物', description: '顯示在右側的人物圖' },
-  ];
+      { key: 'board', label: '盤面底圖', description: '顯示在卷軸下方的底圖' },
+      { key: 'frame', label: '盤面框', description: '覆蓋在卷軸邊緣的框架' },
+      { key: 'background', label: '背景', description: '整個容器的背景圖' },
+      { key: 'character', label: '人物', description: '顯示在右側的人物圖' },
+    ];
 
   return (
     <div style={{
@@ -161,7 +154,8 @@ export function AssetPanel() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
           gap: '12px',
         }}>
-          {symbols.map((symbolId) => {
+          {symbols.map((symbol) => {
+            const symbolId = symbol.id;
             const imageUrl = getSymbolImageUrl(symbolId);
             return (
               <div
@@ -181,7 +175,7 @@ export function AssetPanel() {
                   fontWeight: 'bold',
                   textAlign: 'center',
                 }}>
-                  {symbolId}
+                  {symbolId} ({symbol.name})
                 </div>
                 {imageUrl ? (
                   <div style={{

@@ -3,23 +3,32 @@ import { SlotMachine } from '../../runtime/index.js';
 import type { SlotMachineRef } from '../../runtime/index.js';
 import type { SpinPacket } from '../../types/spin-packet.js';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
-import { ControlPanelV2 } from './ControlPanelV2.js';
+import { LeftSidebar } from './LeftSidebar.js';
 import { GameControlV2 } from './GameControlV2.js';
+import { GameControlBar } from './GameControlBar.js';
 import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
 
 /**
- * IDE 主佈局 V2（三欄式）
+ * IDE 主佈局 V2（新版三欄式）
  * 
  * 結構：
  * ┌─────────────────────────────────────────────────────────────────┐
  * │  Header                                                         │
- * ├─────────────┬─────────────────────────────┬─────────────────────┤
- * │             │                             │                     │
- * │  Control    │      SlotMachine            │    GameControl      │
- * │   Panel     │         (50%)               │      Panel          │
- * │   (25%)     │                             │      (25%)          │
- * │             │                             │                     │
- * ├─────────────┴─────────────────────────────┴─────────────────────┤
+ * ├────┬─────────────────────────────────────────────┬──────────────┤
+ * │    │                                             │              │
+ * │ L  │              SlotMachine                    │    Right     │
+ * │ e  │               (中央)                        │    Panel     │
+ * │ f  │                                             │   (Tabs)     │
+ * │ t  │    ┌────────────────────────────────┐      │              │
+ * │    │    │   GameControlBar (底部)         │      │              │
+ * │ S  │    └────────────────────────────────┘      │              │
+ * │ i  │                                             │              │
+ * │ d  │                                             │              │
+ * │ e  │                                             │              │
+ * │ b  │                                             │              │
+ * │ a  │                                             │              │
+ * │ r  │                                             │              │
+ * ├────┴─────────────────────────────────────────────┴──────────────┤
  * │  Statistics Panel (可收合)                                       │
  * └─────────────────────────────────────────────────────────────────┘
  */
@@ -74,37 +83,36 @@ export function IDELayoutV2() {
         </div>
       </header>
 
-      {/* Main Content - 三欄式 */}
+      {/* Main Content */}
       <main className="flex flex-1 overflow-hidden">
-        {/* 左側 Control Panel (25%) */}
-        <aside className="w-1/4 min-w-[280px] max-w-[400px] bg-surface-900 border-r border-surface-700 overflow-hidden">
-          <ControlPanelV2 />
-        </aside>
+        {/* 左側 Icon 導航欄（佔位） */}
+        <LeftSidebar />
 
-        {/* 中間 Slot Machine (50%) */}
-        <section className="flex-1 flex items-center justify-center bg-gradient-to-br from-surface-950 via-surface-900 to-surface-950 p-4">
-          <div className="relative">
-            {/* 裝飾背景 */}
-            <div className="absolute inset-0 -m-8 bg-gradient-to-br from-primary-900/20 to-purple-900/20 rounded-3xl blur-xl" />
+        {/* 中間 Slot Machine */}
+        <section className="flex-1 flex items-center justify-center bg-gradient-to-br from-surface-950 via-surface-900 to-surface-950 p-4 relative">
+          {/* 裝飾背景 */}
+          <div className="absolute inset-0 -m-8 bg-gradient-to-br from-primary-900/20 to-purple-900/20 rounded-3xl blur-xl pointer-events-none" />
 
-            {/* Slot Machine */}
-            <div className="relative">
-              <SlotMachine
-                ref={slotMachineRef}
-                spinPacket={displaySpinPacket}
-                onSpinComplete={() => {
-                  console.log('Spin complete');
-                }}
-                onSkip={() => {
-                  console.log('Spin skipped');
-                }}
-              />
-            </div>
+          {/* Slot Machine */}
+          <div className="relative z-10">
+            <SlotMachine
+              ref={slotMachineRef}
+              spinPacket={displaySpinPacket}
+              onSpinComplete={() => {
+                console.log('Spin complete');
+              }}
+              onSkip={() => {
+                console.log('Spin skipped');
+              }}
+            />
           </div>
+
+          {/* 底部控制欄 */}
+          <GameControlBar />
         </section>
 
-        {/* 右側 Game Control (25%) */}
-        <aside className="w-1/4 min-w-[280px] max-w-[400px] bg-surface-900 border-l border-surface-700 overflow-hidden">
+        {/* 右側 Game Control (合併所有設定 Tab) */}
+        <aside className="w-[400px] min-w-[400px] max-w-[400px] bg-surface-900 border-l border-surface-700 overflow-hidden">
           <GameControlV2 />
         </aside>
       </main>
@@ -134,4 +142,3 @@ export function IDELayoutV2() {
     </div>
   );
 }
-

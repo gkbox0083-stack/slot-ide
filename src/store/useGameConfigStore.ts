@@ -16,31 +16,31 @@ export interface GameConfigState {
   gameName: string;
   baseBet: number;
   balance: number;
-  
+
   // 盤面配置
   boardConfig: BoardConfig;
-  
+
   // 符號設定
   symbols: SymbolDefinition[];
-  
+
   // 賠率設定（NG/FG 分離）
   outcomeConfig: OutcomeConfig;
-  
+
   // 線型設定
   linesConfig: LinesConfig;
-  
+
   // 視覺設定
   visualConfig: VisualConfig;
-  
+
   // Free Spin 設定
   freeSpinConfig: FreeSpinConfig;
-  
+
   // 素材資源
   assets: AssetsPatch;
-  
+
   // 當前 SpinPacket
   currentSpinPacket: SpinPacket | null;
-  
+
   // Pool 資料
   pools: Map<string, Board[]>;
   isPoolsBuilt: boolean;
@@ -54,33 +54,33 @@ export interface GameConfigActions {
   setGameName: (name: string) => void;
   setBaseBet: (bet: number) => void;
   setBalance: (balance: number) => void;
-  
+
   // 盤面配置
   setBoardConfig: (config: BoardConfig) => void;
-  
+
   // 符號設定
   setSymbols: (symbols: SymbolDefinition[]) => void;
   updateSymbol: (symbol: SymbolDefinition) => void;
   addSymbol: (symbol: SymbolDefinition) => void;
   removeSymbol: (id: string) => void;
-  
+
   // 賠率設定
   setOutcomeConfig: (config: OutcomeConfig) => void;
   addOutcome: (outcome: Omit<Outcome, 'id'>) => void;
   updateOutcome: (outcome: Outcome) => void;
   removeOutcome: (id: string) => void;
-  
+
   // 線型設定
   setLinesConfig: (config: LinesConfig) => void;
-  
+
   // 視覺設定
   setVisualConfig: (config: VisualConfig) => void;
   updateAnimationConfig: (animation: Partial<VisualConfig['animation']>) => void;
   updateLayoutConfig: (layout: Partial<VisualConfig['layout']>) => void;
-  
+
   // Free Spin 設定
   setFreeSpinConfig: (config: FreeSpinConfig) => void;
-  
+
   // 素材資源
   setAssets: (assets: AssetsPatch) => void;
   setSymbolImage: (symbolId: string, dataUrl: string) => void;
@@ -88,14 +88,14 @@ export interface GameConfigActions {
   setOtherAsset: (key: 'board' | 'frame' | 'background' | 'character', dataUrl: string) => void;
   removeOtherAsset: (key: 'board' | 'frame' | 'background' | 'character') => void;
   clearAllAssets: () => void;
-  
+
   // SpinPacket
   setCurrentSpinPacket: (packet: SpinPacket | null) => void;
-  
+
   // Pool 管理
   setPools: (pools: Map<string, Board[]>) => void;
   setIsPoolsBuilt: (isBuilt: boolean) => void;
-  
+
   // 重置
   resetToDefaults: () => void;
 }
@@ -103,7 +103,10 @@ export interface GameConfigActions {
 /**
  * 預設符號列表（V2 擴展）
  */
-const defaultSymbols: SymbolDefinition[] = [
+/**
+ * 預設符號列表（V2 擴展）
+ */
+export const defaultSymbols: SymbolDefinition[] = [
   // 高分符號
   { id: 'H1', name: '皇冠', type: 'normal', category: 'high', payouts: { match3: 50, match4: 100, match5: 200 }, appearanceWeight: 10, ngWeight: 10, fgWeight: 10 },
   { id: 'H2', name: '鑽石', type: 'normal', category: 'high', payouts: { match3: 40, match4: 80, match5: 160 }, appearanceWeight: 15, ngWeight: 15, fgWeight: 15 },
@@ -114,33 +117,33 @@ const defaultSymbols: SymbolDefinition[] = [
   { id: 'L3', name: 'Q', type: 'normal', category: 'low', payouts: { match3: 6, match4: 12, match5: 24 }, appearanceWeight: 40, ngWeight: 40, fgWeight: 40 },
   { id: 'L4', name: 'J', type: 'normal', category: 'low', payouts: { match3: 4, match4: 8, match5: 16 }, appearanceWeight: 45, ngWeight: 45, fgWeight: 45 },
   // Wild 符號
-  { 
-    id: 'WILD', 
-    name: '百搭', 
-    type: 'wild', 
-    category: 'high', 
-    payouts: { match3: 0, match4: 0, match5: 0 }, 
-    appearanceWeight: 5, 
-    ngWeight: 5, 
+  {
+    id: 'WILD',
+    name: '百搭',
+    type: 'wild',
+    category: 'high',
+    payouts: { match3: 0, match4: 0, match5: 0 },
+    appearanceWeight: 5,
+    ngWeight: 5,
     fgWeight: 15,
     wildConfig: { canReplaceNormal: true, canReplaceSpecial: false }
   },
   // Scatter 符號
-  { 
-    id: 'SCATTER', 
-    name: '分散', 
-    type: 'scatter', 
-    category: 'high', 
-    payouts: { match3: 0, match4: 0, match5: 0 }, 
-    appearanceWeight: 3, 
-    ngWeight: 3, 
+  {
+    id: 'SCATTER',
+    name: '分散',
+    type: 'scatter',
+    category: 'high',
+    payouts: { match3: 0, match4: 0, match5: 0 },
+    appearanceWeight: 3,
+    ngWeight: 3,
     fgWeight: 5,
-    scatterConfig: { 
-      triggerCount: 3, 
-      freeSpinCount: 10, 
-      enableRetrigger: true, 
-      enableMultiplier: true, 
-      multiplierValue: 2 
+    scatterConfig: {
+      triggerCount: 3,
+      freeSpinCount: 10,
+      enableRetrigger: true,
+      enableMultiplier: true,
+      multiplierValue: 2
     }
   },
 ];
@@ -148,7 +151,7 @@ const defaultSymbols: SymbolDefinition[] = [
 /**
  * 預設 Outcome 配置（NG/FG 分離）
  */
-const defaultOutcomeConfig: OutcomeConfig = {
+export const defaultOutcomeConfig: OutcomeConfig = {
   ngOutcomes: [
     { id: 'ng_lose', name: '未中獎', phase: 'ng', multiplierRange: { min: 0, max: 0 }, weight: 600 },
     { id: 'ng_small', name: '小獎', phase: 'ng', multiplierRange: { min: 1, max: 10 }, weight: 300 },
@@ -168,7 +171,7 @@ const defaultOutcomeConfig: OutcomeConfig = {
 /**
  * 預設線型配置 (20 條線)
  */
-const defaultLinesConfig: LinesConfig = {
+export const defaultLinesConfig: LinesConfig = {
   count: 20,
   patterns: [
     { id: 1, positions: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1]] },
@@ -197,7 +200,7 @@ const defaultLinesConfig: LinesConfig = {
 /**
  * 預設視覺配置
  */
-const defaultVisualConfig: VisualConfig = {
+export const defaultVisualConfig: VisualConfig = {
   animation: {
     spinSpeed: 20,
     spinDuration: 2000,
@@ -215,7 +218,7 @@ const defaultVisualConfig: VisualConfig = {
 /**
  * 預設 Free Spin 配置
  */
-const defaultFreeSpinConfig: FreeSpinConfig = {
+export const defaultFreeSpinConfig: FreeSpinConfig = {
   enabled: true,
   triggerCount: 3,
   baseSpinCount: 10,
@@ -228,7 +231,7 @@ const defaultFreeSpinConfig: FreeSpinConfig = {
 /**
  * 預設盤面配置
  */
-const defaultBoardConfig: BoardConfig = {
+export const defaultBoardConfig: BoardConfig = {
   cols: 5,
   rows: 3,
 };
@@ -269,7 +272,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       setGameName: (name) => set({ gameName: name }),
       setBaseBet: (bet) => set({ baseBet: bet }),
       setBalance: (balance) => set({ balance }),
-      
+
       // 盤面配置
       setBoardConfig: (config) => set({ boardConfig: config }),
 
@@ -315,7 +318,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
             return {
               outcomeConfig: {
                 ...state.outcomeConfig,
-                ngOutcomes: state.outcomeConfig.ngOutcomes.map((o) => 
+                ngOutcomes: state.outcomeConfig.ngOutcomes.map((o) =>
                   o.id === outcome.id ? outcome : o
                 ),
               },
@@ -324,7 +327,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
             return {
               outcomeConfig: {
                 ...state.outcomeConfig,
-                fgOutcomes: state.outcomeConfig.fgOutcomes.map((o) => 
+                fgOutcomes: state.outcomeConfig.fgOutcomes.map((o) =>
                   o.id === outcome.id ? outcome : o
                 ),
               },
@@ -358,7 +361,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
             layout: { ...state.visualConfig.layout, ...layout },
           },
         })),
-        
+
       // Free Spin 設定
       setFreeSpinConfig: (config) => set({ freeSpinConfig: config }),
 
@@ -396,7 +399,7 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
 
       // SpinPacket
       setCurrentSpinPacket: (packet) => set({ currentSpinPacket: packet }),
-      
+
       // Pool 管理
       setPools: (pools) => set({ pools }),
       setIsPoolsBuilt: (isBuilt) => set({ isPoolsBuilt: isBuilt }),

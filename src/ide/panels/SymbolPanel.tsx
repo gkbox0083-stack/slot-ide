@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useGameConfigStore } from '../../store/useGameConfigStore.js';
-import type { 
-  SymbolDefinition, 
-  SymbolType, 
+import { useGameConfigStore, defaultSymbols } from '../../store/useGameConfigStore.js';
+import type {
+  SymbolDefinition,
+  SymbolType,
   SymbolCategory,
 } from '../../types/symbol.js';
 
@@ -11,7 +11,7 @@ import type {
  * 支援 Wild/Scatter 配置、ngWeight/fgWeight 雙欄
  */
 export function SymbolPanel() {
-  const { symbols, updateSymbol, addSymbol, removeSymbol } = useGameConfigStore();
+  const { symbols, updateSymbol, addSymbol, removeSymbol, setSymbols } = useGameConfigStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -19,8 +19,29 @@ export function SymbolPanel() {
   const normalSymbols = symbols.filter(s => s.type === 'normal');
   const specialSymbols = symbols.filter(s => s.type === 'wild' || s.type === 'scatter');
 
+  // Reset function
+  const handleReset = () => {
+    if (confirm('確定要重置所有符號設定嗎？此動作無法復原。')) {
+      // Deep copy to reset
+      setSymbols(JSON.parse(JSON.stringify(defaultSymbols)));
+      setEditingId(null);
+      setShowAddForm(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Header with Reset */}
+      <div className="flex justify-between items-center px-1">
+        <span className="text-sm font-semibold text-surface-200">符號列表</span>
+        <button
+          onClick={handleReset}
+          className="text-xs text-surface-400 hover:text-white flex items-center gap-1 transition-colors"
+        >
+          <span>↺</span> 全部重置
+        </button>
+      </div>
+
       {/* 一般符號 */}
       <div className="bg-surface-900/50 rounded-lg p-3">
         <h5 className="text-xs font-semibold text-surface-400 mb-2">一般符號</h5>
@@ -73,7 +94,7 @@ export function SymbolPanel() {
           onCancel={() => setShowAddForm(false)}
         />
       ) : (
-        <button 
+        <button
           onClick={() => setShowAddForm(true)}
           className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 transition-colors text-sm font-semibold"
         >
@@ -114,14 +135,13 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
           <div className="flex items-center gap-2">
             <span role="text" aria-label={`ID: ${symbol.id}`} className="font-mono text-sm font-bold text-surface-200">{symbol.id}</span>
             <span role="text" aria-label={`名稱: ${symbol.name}`} className="text-sm text-surface-400">{symbol.name}</span>
-            <span 
-              role="text" 
+            <span
+              role="text"
               aria-label={`類型: ${symbol.type}`}
-              className={`text-xs px-2 py-0.5 rounded ${
-                symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
-                symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
-                'bg-surface-600 text-surface-300'
-              }`}
+              className={`text-xs px-2 py-0.5 rounded ${symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
+                  symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
+                    'bg-surface-600 text-surface-300'
+                }`}
             >
               {symbol.type}
             </span>
@@ -177,7 +197,7 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
             onChange={(e) => {
               const type = e.target.value as SymbolType;
               const updated = { ...editedSymbol, type };
-              
+
               if (type === 'wild' && !updated.wildConfig) {
                 updated.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
               } else if (type === 'scatter' && !updated.scatterConfig) {
@@ -379,13 +399,13 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
 
       {/* 操作按鈕 */}
       <div className="flex gap-2">
-        <button 
+        <button
           onClick={() => onSave(editedSymbol)}
           className="flex-1 py-2 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-500"
         >
           儲存
         </button>
-        <button 
+        <button
           onClick={onCancel}
           className="flex-1 py-2 bg-surface-600 text-surface-300 rounded text-sm hover:bg-surface-500"
         >
@@ -417,7 +437,7 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
 
   const handleAdd = () => {
     if (!newSymbol.name) return;
-    
+
     const symbol: SymbolDefinition = {
       id: `SYM_${Date.now()}`,
       name: newSymbol.name || '',
@@ -428,7 +448,7 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
       ngWeight: newSymbol.ngWeight || 20,
       fgWeight: newSymbol.fgWeight || 20,
     };
-    
+
     if (symbol.type === 'wild') {
       symbol.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
     } else if (symbol.type === 'scatter') {
@@ -440,7 +460,7 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
         multiplierValue: 2,
       };
     }
-    
+
     onAdd(symbol);
   };
 
@@ -471,13 +491,13 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
         </div>
       </div>
       <div className="flex gap-2">
-        <button 
+        <button
           onClick={handleAdd}
           className="flex-1 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-500"
         >
           新增
         </button>
-        <button 
+        <button
           onClick={onCancel}
           className="flex-1 py-2 bg-surface-600 text-surface-300 rounded text-sm hover:bg-surface-500"
         >
@@ -502,17 +522,17 @@ function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
         {symbols.map((symbol) => {
           const ngRate = totalNGWeight > 0 ? (symbol.ngWeight / totalNGWeight) * 100 : 0;
           const fgRate = totalFGWeight > 0 ? (symbol.fgWeight / totalFGWeight) * 100 : 0;
-          
+
           return (
-            <div 
-              key={symbol.id} 
-              className="flex items-center gap-2 text-xs" 
+            <div
+              key={symbol.id}
+              className="flex items-center gap-2 text-xs"
               role="listitem"
               aria-label={`${symbol.id}: NG ${ngRate.toFixed(1)}%, FG ${fgRate.toFixed(1)}%`}
             >
               <span role="text" className="w-12 font-mono text-surface-300">{symbol.id}</span>
               <div className="flex-1 flex gap-1" role="group" aria-label="權重條">
-                <div 
+                <div
                   className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
                   role="progressbar"
                   aria-valuenow={ngRate}
@@ -520,12 +540,12 @@ function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
                   aria-valuemax={100}
                   aria-label={`NG: ${ngRate.toFixed(1)}%`}
                 >
-                  <div 
-                    className="h-full bg-blue-500" 
+                  <div
+                    className="h-full bg-blue-500"
                     style={{ width: `${ngRate}%` }}
                   />
                 </div>
-                <div 
+                <div
                   className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
                   role="progressbar"
                   aria-valuenow={fgRate}
@@ -533,8 +553,8 @@ function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
                   aria-valuemax={100}
                   aria-label={`FG: ${fgRate.toFixed(1)}%`}
                 >
-                  <div 
-                    className="h-full bg-purple-500" 
+                  <div
+                    className="h-full bg-purple-500"
                     style={{ width: `${fgRate}%` }}
                   />
                 </div>
