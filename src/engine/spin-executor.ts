@@ -14,7 +14,7 @@ export class SpinExecutor {
     private outcomeManager: OutcomeManager,
     private poolBuilder: PoolBuilder,
     private settlement: Settlement
-  ) {}
+  ) { }
 
   /**
    * 執行單次 Spin，返回完整 SpinPacket（V2 擴展）
@@ -36,8 +36,9 @@ export class SpinExecutor {
       throw new Error('請先執行 buildPools() 建立盤池');
     }
 
-    // 2. 抽取 Outcome
-    const outcome = this.outcomeManager.drawOutcome();
+    // 2. 抽取 Outcome (依據階段)
+    const outcomePhase = phase === 'base' ? 'ng' : 'fg';
+    const outcome = this.outcomeManager.drawOutcomeByPhase(outcomePhase);
 
     // 3. 從盤池抽取 Board
     const board = this.poolBuilder.drawBoard(outcome.id);

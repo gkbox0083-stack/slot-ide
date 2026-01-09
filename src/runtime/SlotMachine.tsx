@@ -175,7 +175,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
     // 檢查所有輪是否都停止
     useEffect(() => {
       const allStopped = reelStates.every((state) => state === 'stopped');
-      
+
       if (allStopped && isSpinningRef.current) {
         isSpinningRef.current = false;
 
@@ -251,12 +251,12 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
         // 先重置狀態
         setWinningLineDisplay(null);
         clearAllTimers();
-        
+
         // 使用 setTimeout 確保狀態更新後再啟動動畫
         const timer = setTimeout(() => {
           startSpin();
         }, 50);
-        
+
         return () => clearTimeout(timer);
       }
     }, [spinPacket]);
@@ -273,15 +273,16 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       }
 
       const symbolSize = 100;
-      const symbolHeight = symbolSize * visual.layout.symbolScale;
+      // symbolScale 僅影響 Symbol 元件，不影響格子佈局
+      const symbolHeight = symbolSize;
       const reelGap = visual.layout.reelGap;
-      const reelWidth = symbolSize * visual.layout.symbolScale;
-      const boardScale = visual.layout.boardScale;
+      const reelWidth = symbolSize;
+      // 使用未縮放座標，因為 SVG 在已縮放的容器內
 
-      // 計算每個位置的座標
+      // 計算每個位置的座標（未縮放）
       const points = currentLine.positions.map(([col, row]) => {
-        const x = (col * (reelWidth + reelGap) + reelWidth / 2) * boardScale;
-        const y = (row * symbolHeight + symbolHeight / 2) * boardScale;
+        const x = col * (reelWidth + reelGap) + reelWidth / 2;
+        const y = row * symbolHeight + symbolHeight / 2;
         return { x, y };
       });
 
@@ -304,7 +305,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
         <path
           d={pathData}
           stroke="#FFD700"
-          strokeWidth={4 * boardScale}
+          strokeWidth={4}
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -335,20 +336,23 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       return getHighlightedRowsForReel(reelIndex, currentLine);
     };
 
-    // 計算尺寸
+    // 計算尺寸：symbolScale 僅影響 Symbol 元件
     const symbolSize = 100;
-    const symbolHeight = symbolSize * visual.layout.symbolScale;
-    const reelWidth = symbolSize * visual.layout.symbolScale;
+    const symbolHeight = symbolSize;
+    const reelWidth = symbolSize;
     const reelGap = visual.layout.reelGap;
     const boardWidth = (reelWidth * 5 + reelGap * 4) * visual.layout.boardScale;
     const boardHeight = (symbolHeight * board.rows) * visual.layout.boardScale;
 
-    // 外層容器（包含背景）
+    // 外層容器（包含背景）- 置中盤面
     const outerContainerStyle: React.CSSProperties = {
       position: 'relative',
       width: '100%',
       height: '100%',
       minHeight: boardHeight,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     };
 
     // 背景層（z-index: 0）
@@ -365,11 +369,11 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       backgroundRepeat: 'no-repeat',
     };
 
-    // 盤面容器（包含 board 底圖和 reels）
+    // 盤面容器（包含 board 底圖和 reels）- 從中心縮放
     const boardContainerStyle: React.CSSProperties = {
       position: 'relative',
       transform: `scale(${visual.layout.boardScale})`,
-      transformOrigin: 'top left',
+      transformOrigin: 'center',
       width: boardWidth / visual.layout.boardScale,
       height: boardHeight / visual.layout.boardScale,
       zIndex: 2,
@@ -426,13 +430,15 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       pointerEvents: 'none',
     };
 
-    // 中獎線 SVG（z-index: 5）
+    // 中獎線 SVG（z-index: 5）- 使用未縮放尺寸
+    const logicalBoardWidth = boardWidth / visual.layout.boardScale;
+    const logicalBoardHeight = boardHeight / visual.layout.boardScale;
     const svgOverlayStyle: React.CSSProperties = {
       position: 'absolute',
       top: 0,
       left: 0,
-      width: boardWidth,
-      height: boardHeight,
+      width: logicalBoardWidth,
+      height: logicalBoardHeight,
       pointerEvents: 'none',
       zIndex: 5,
     };
@@ -461,6 +467,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
                 animation={visual.animation}
                 symbolSize={symbolSize}
                 symbolScale={visual.layout.symbolScale}
+                rows={board.rows}
                 state={reelStates[reelIndex]}
                 highlightedRows={getHighlightedRows(reelIndex)}
                 onStopped={() => handleReelStopped(reelIndex)}
@@ -476,9 +483,9 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
           {/* 中獎線 SVG（z-index: 5） */}
           <svg
             style={svgOverlayStyle}
-            width={boardWidth}
-            height={boardHeight}
-            viewBox={`0 0 ${boardWidth} ${boardHeight}`}
+            width={logicalBoardWidth}
+            height={logicalBoardHeight}
+            viewBox={`0 0 ${logicalBoardWidth} ${logicalBoardHeight}`}
           >
             {renderWinningLinePath()}
           </svg>

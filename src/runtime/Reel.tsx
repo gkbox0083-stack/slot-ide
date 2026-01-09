@@ -16,9 +16,10 @@ export interface ReelProps {
     bounceStrength: number;     // 回彈力度 (0-1)
   };
   symbolSize?: number;          // 符號尺寸（預設 100）
-  symbolScale?: number;         // 符號縮放（預設 1）
+  symbolScale?: number;         // 符號縮放（預設 1，僅影響符號視覺大小）
+  rows?: number;                // 顯示行數（預設 3，支援 5x4 為 4）
   state: 'idle' | 'spinning' | 'stopping' | 'stopped';
-  highlightedRows?: number[];   // 高亮的行 index（0, 1, 2）
+  highlightedRows?: number[];   // 高亮的行 index
   onStopped?: () => void;       // 停輪完成回調
 }
 
@@ -49,6 +50,7 @@ export function Reel({
   animation,
   symbolSize = 100,
   symbolScale = 1,
+  rows = 3,
   state,
   highlightedRows = [],
   onStopped,
@@ -66,8 +68,8 @@ export function Reel({
   const dummySymbolsRef = useRef<SymbolId[]>(generateDummySymbols(30));
   const prevStateRef = useRef<string>(state);
 
-  // 常數
-  const symbolHeight = symbolSize * symbolScale;
+  // 常數：symbolScale 僅影響 Symbol 元件，不影響格子大小
+  const symbolHeight = symbolSize;
   const dummyIconsCount = 30; // 假符號單個週期圖示數
   const finalIconsCount = symbols.length; // 最終符號數量（3）
   const copies = 15; // 副本數量
@@ -228,8 +230,8 @@ export function Reel({
   return (
     <div
       style={{
-        width: `${symbolSize * symbolScale}px`,
-        height: `${symbolSize * symbolScale * 3}px`,
+        width: `${symbolSize}px`,
+        height: `${symbolSize * rows}px`,
         position: 'relative',
         overflow: 'hidden',
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -256,7 +258,7 @@ export function Reel({
             // offset = 0 時，可見區域從 middleStart 開始
             const visibleIndex = index - middleStart;
 
-            if (visibleIndex >= 0 && visibleIndex < 3) {
+            if (visibleIndex >= 0 && visibleIndex < rows) {
               isHighlighted = highlightedRows.includes(visibleIndex);
             }
           }
@@ -265,8 +267,8 @@ export function Reel({
             <div
               key={`${symbolId}-${index}`}
               style={{
-                width: `${symbolSize * symbolScale}px`,
-                height: `${symbolSize * symbolScale}px`,
+                width: `${symbolSize}px`,
+                height: `${symbolSize}px`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

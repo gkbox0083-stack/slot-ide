@@ -137,6 +137,37 @@ export class OutcomeManager {
   }
 
   /**
+   * 計算指定階段的總權重
+   */
+  private getTotalWeightByPhase(phase: 'ng' | 'fg'): number {
+    return this.outcomes
+      .filter(o => o.phase === phase)
+      .reduce((sum, outcome) => sum + outcome.weight, 0);
+  }
+
+  /**
+   * 根據遊戲階段權重隨機抽取一個 Outcome
+   */
+  drawOutcomeByPhase(phase: 'ng' | 'fg'): Outcome {
+    const totalWeight = this.getTotalWeightByPhase(phase);
+    if (totalWeight === 0) {
+      throw new Error(`No outcomes available for phase "${phase}" or all weights are zero`);
+    }
+
+    let random = Math.random() * totalWeight;
+    const phaseOutcomes = this.outcomes.filter(o => o.phase === phase);
+
+    for (const outcome of phaseOutcomes) {
+      random -= outcome.weight;
+      if (random <= 0) {
+        return outcome;
+      }
+    }
+
+    return phaseOutcomes[phaseOutcomes.length - 1];
+  }
+
+  /**
    * 計算指定 Outcome 的機率百分比（顯示用）
    */
   getProbability(id: string): number {

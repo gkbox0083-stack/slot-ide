@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
-import { poolBuilder, symbolManager, outcomeManager } from '../../engine/index.js';
+import { poolBuilder, symbolManager, outcomeManager, linesManager } from '../../engine/index.js';
 import type { BoardRows } from '../../types/board.js';
 
 /**
@@ -8,16 +8,17 @@ import type { BoardRows } from '../../types/board.js';
  * 包含：盤面模式選擇、Build Pools、Pool 狀態顯示
  */
 export function PoolPanel() {
-  const { 
-    boardConfig, 
+  const {
+    boardConfig,
     setBoardConfig,
     symbols,
     outcomeConfig,
+    linesConfig,
     freeSpinConfig,
     isPoolsBuilt,
     setIsPoolsBuilt,
   } = useGameConfigStore();
-  
+
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingRows, setPendingRows] = useState<BoardRows | null>(null);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -64,11 +65,11 @@ export function PoolPanel() {
   const handleBuildPools = async () => {
     setIsBuilding(true);
     setBuildError(null);
-    
+
     try {
       // 同步盤面配置
       poolBuilder.setBoardConfig(boardConfig);
-      
+
       // 同步符號
       symbols.forEach((symbol) => {
         if (symbolManager.getById(symbol.id)) {
@@ -77,7 +78,7 @@ export function PoolPanel() {
           symbolManager.add(symbol);
         }
       });
-      
+
       // 同步 Outcomes
       const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
       allOutcomes.forEach((outcome) => {
@@ -87,10 +88,13 @@ export function PoolPanel() {
           outcomeManager.add(outcome);
         }
       });
-      
+
+      // 同步線路配置 (Fix: Pay Lines Not Updating)
+      linesManager.setLinesConfig(linesConfig);
+
       // 建立盤池
       const result = poolBuilder.buildPools(poolCap);
-      
+
       if (result.success) {
         setPoolStatus(result.pools);
         setIsPoolsBuilt(true); // 更新 store
@@ -125,22 +129,20 @@ export function PoolPanel() {
           <button
             type="button"
             onClick={() => handleBoardRowsChange(3)}
-            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-              boardConfig.rows === 3
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${boardConfig.rows === 3
                 ? 'bg-primary-600 text-white ring-2 ring-primary-400'
                 : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-            }`}
+              }`}
           >
             5 × 3
           </button>
           <button
             type="button"
             onClick={() => handleBoardRowsChange(4)}
-            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-              boardConfig.rows === 4
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${boardConfig.rows === 4
                 ? 'bg-primary-600 text-white ring-2 ring-primary-400'
                 : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-            }`}
+              }`}
           >
             5 × 4
           </button>
@@ -162,11 +164,10 @@ export function PoolPanel() {
             <button
               key={cap}
               onClick={() => setPoolCap(cap)}
-              className={`flex-1 py-2 text-sm rounded ${
-                poolCap === cap
+              className={`flex-1 py-2 text-sm rounded ${poolCap === cap
                   ? 'bg-primary-600 text-white'
                   : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-              }`}
+                }`}
             >
               {cap}
             </button>
@@ -188,7 +189,7 @@ export function PoolPanel() {
         <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
           🏊 盤池管理
         </h4>
-        
+
         <div className="flex gap-2 mb-3">
           <button
             type="button"
@@ -198,7 +199,7 @@ export function PoolPanel() {
           >
             {isBuilding ? '🔨 Building...' : '🔨 Build Pools'}
           </button>
-          
+
           {isPoolsBuilt && (
             <button
               type="button"
@@ -209,7 +210,7 @@ export function PoolPanel() {
             </button>
           )}
         </div>
-        
+
         {/* 狀態指示 */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm text-surface-400">狀態:</span>
@@ -217,14 +218,14 @@ export function PoolPanel() {
             {isPoolsBuilt ? '✅ 已建立' : '❌ 未建立'}
           </span>
         </div>
-        
+
         {/* 錯誤訊息 */}
         {buildError && (
           <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg mb-3">
             <p className="text-sm text-red-300">⚠️ {buildError}</p>
           </div>
         )}
-        
+
         {/* Pool 配置摘要 */}
         <div className="p-3 bg-surface-900 rounded-lg text-sm space-y-1">
           <div className="flex justify-between text-surface-400">
@@ -260,13 +261,12 @@ export function PoolPanel() {
           </h4>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {poolStatus.map((pool) => (
-              <div 
+              <div
                 key={pool.outcomeId}
-                className={`p-2 rounded flex justify-between items-center ${
-                  pool.isFull 
-                    ? 'bg-green-900/20 border border-green-700' 
+                className={`p-2 rounded flex justify-between items-center ${pool.isFull
+                    ? 'bg-green-900/20 border border-green-700'
                     : 'bg-yellow-900/20 border border-yellow-700'
-                }`}
+                  }`}
               >
                 <span className="text-sm text-surface-300">{pool.outcomeName}</span>
                 <span className={`text-sm font-semibold ${pool.isFull ? 'text-green-400' : 'text-yellow-400'}`}>

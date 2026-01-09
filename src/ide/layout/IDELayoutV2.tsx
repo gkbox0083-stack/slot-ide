@@ -26,12 +26,12 @@ import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
 export function IDELayoutV2() {
   const slotMachineRef = useRef<SlotMachineRef>(null);
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(true);
-  
-  const { 
-    currentSpinPacket, 
-    visualConfig, 
+
+  const {
+    currentSpinPacket,
+    visualConfig,
     assets,
-    gameName 
+    gameName
   } = useGameConfigStore();
 
   // 同步 visualConfig 和 assets 到 currentSpinPacket
@@ -39,10 +39,10 @@ export function IDELayoutV2() {
     if (!currentSpinPacket) {
       return undefined;
     }
-    
+
     const visualChanged = JSON.stringify(currentSpinPacket.visual) !== JSON.stringify(visualConfig);
     const assetsChanged = JSON.stringify(currentSpinPacket.assets) !== JSON.stringify(assets);
-    
+
     if (visualChanged || assetsChanged) {
       return {
         ...currentSpinPacket,
@@ -62,7 +62,7 @@ export function IDELayoutV2() {
           <span className="font-bold text-lg">slot-ide</span>
           <span className="text-surface-400 text-sm">v2.0</span>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <span className="text-sm text-surface-400">
             {gameName || '未命名專案'}
@@ -86,7 +86,7 @@ export function IDELayoutV2() {
           <div className="relative">
             {/* 裝飾背景 */}
             <div className="absolute inset-0 -m-8 bg-gradient-to-br from-primary-900/20 to-purple-900/20 rounded-3xl blur-xl" />
-            
+
             {/* Slot Machine */}
             <div className="relative">
               <SlotMachine
@@ -122,12 +122,11 @@ export function IDELayoutV2() {
           </span>
           <span>{isStatsPanelOpen ? '收合統計' : '展開統計'}</span>
         </button>
-        
+
         {/* 統計內容 - 可收合區域 */}
         <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out ${
-            isStatsPanelOpen ? 'max-h-[300px]' : 'max-h-0'
-          }`}
+          className={`overflow-hidden transition-all duration-300 ease-in-out ${isStatsPanelOpen ? 'max-h-[320px]' : 'max-h-0'
+            }`}
         >
           <StatisticsPanelV2 />
         </div>

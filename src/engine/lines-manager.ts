@@ -172,5 +172,19 @@ export class LinesManager {
   getCount(): number {
     return this.config.count;
   }
+
+  /**
+   * 設定完整線條配置 (V2 Fix)
+   * 允許外部直接注入編輯後的線路
+   */
+  setLinesConfig(config: LinesConfig): void {
+    this.config = {
+      count: config.count,
+      patterns: config.patterns.map(p => ({
+        id: p.id,
+        positions: [...p.positions],
+      })),
+    };
+  }
 }
 

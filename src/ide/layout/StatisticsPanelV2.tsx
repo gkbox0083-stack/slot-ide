@@ -13,7 +13,7 @@ export function StatisticsPanelV2() {
 
   const handleExportCSV = () => {
     if (results.length === 0) return;
-    
+
     // 計算累計統計
     const total = results.reduce((acc, r) => ({
       totalSpins: acc.totalSpins + r.totalSpins,
@@ -31,7 +31,7 @@ export function StatisticsPanelV2() {
       totalBet: 0, totalWin: 0, ngWin: 0, fgWin: 0,
       fgTriggerCount: 0, hitCount: 0, maxWin: 0,
     });
-    
+
     // CSV 內容
     const csvContent = [
       ['Metric', 'Value'],
@@ -48,7 +48,7 @@ export function StatisticsPanelV2() {
       ['RTP', `${((total.totalWin / total.totalBet) * 100).toFixed(2)}%`],
       ['Hit Rate', `${((total.hitCount / total.totalSpins) * 100).toFixed(2)}%`],
     ].map(row => row.join(',')).join('\n');
-    
+
     // 下載 CSV
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -69,7 +69,7 @@ export function StatisticsPanelV2() {
           </h4>
           <WinningsBarChart results={results} />
         </div>
-        
+
         {/* Balance History 折線圖 */}
         <div className="flex-1 min-w-[280px] bg-surface-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
@@ -77,7 +77,7 @@ export function StatisticsPanelV2() {
           </h4>
           <RTPLineChart results={results} />
         </div>
-        
+
         {/* Symbol Distribution 圓餅圖 */}
         <div className="flex-1 min-w-[280px] bg-surface-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
@@ -86,7 +86,7 @@ export function StatisticsPanelV2() {
           <SymbolPieChart symbols={symbols} />
         </div>
       </div>
-      
+
       {/* 匯出按鈕 */}
       <div className="mt-3 flex justify-end">
         <button
@@ -106,6 +106,8 @@ export function StatisticsPanelV2() {
  */
 function WinningsBarChart({ results }: { results: SimulationStats[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const LOGICAL_WIDTH = 260;
+  const LOGICAL_HEIGHT = 160;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -114,8 +116,16 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    // 支援 HiDPI 螢幕
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = LOGICAL_WIDTH * dpr;
+    canvas.height = LOGICAL_HEIGHT * dpr;
+    canvas.style.width = `${LOGICAL_WIDTH}px`;
+    canvas.style.height = `${LOGICAL_HEIGHT}px`;
+    ctx.scale(dpr, dpr);
+
+    const width = LOGICAL_WIDTH;
+    const height = LOGICAL_HEIGHT;
 
     // 清除畫布
     ctx.clearRect(0, 0, width, height);
@@ -174,9 +184,7 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
   return (
     <canvas
       ref={canvasRef}
-      width={260}
-      height={160}
-      className="w-full h-auto"
+      className="max-w-full h-auto mx-auto block"
     />
   );
 }
@@ -186,6 +194,8 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
  */
 function RTPLineChart({ results }: { results: SimulationStats[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const LOGICAL_WIDTH = 260;
+  const LOGICAL_HEIGHT = 160;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -194,8 +204,16 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    // 支援 HiDPI 螢幕
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = LOGICAL_WIDTH * dpr;
+    canvas.height = LOGICAL_HEIGHT * dpr;
+    canvas.style.width = `${LOGICAL_WIDTH}px`;
+    canvas.style.height = `${LOGICAL_HEIGHT}px`;
+    ctx.scale(dpr, dpr);
+
+    const width = LOGICAL_WIDTH;
+    const height = LOGICAL_HEIGHT;
 
     // 清除畫布
     ctx.clearRect(0, 0, width, height);
@@ -246,18 +264,18 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
     ctx.strokeStyle = '#6366f1';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    
+
     rtpData.forEach((rtp, i) => {
       const x = padding.left + (i / (rtpData.length - 1 || 1)) * chartWidth;
       const y = padding.top + ((maxRTP - rtp) / range) * chartHeight;
-      
+
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
         ctx.lineTo(x, y);
       }
     });
-    
+
     ctx.stroke();
 
     // 繪製終點
@@ -265,7 +283,7 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
       const lastRTP = rtpData[rtpData.length - 1];
       const lastX = width - padding.right;
       const lastY = padding.top + ((maxRTP - lastRTP) / range) * chartHeight;
-      
+
       ctx.fillStyle = lastRTP >= 100 ? '#4CAF50' : '#f44336';
       ctx.beginPath();
       ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
@@ -289,9 +307,7 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
   return (
     <canvas
       ref={canvasRef}
-      width={260}
-      height={160}
-      className="w-full h-auto"
+      className="max-w-full h-auto mx-auto block"
     />
   );
 }
@@ -301,6 +317,7 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
  */
 function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWeight: number }[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const LOGICAL_SIZE = 160;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -309,8 +326,16 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    // 支援 HiDPI 螢幕
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = LOGICAL_SIZE * dpr;
+    canvas.height = LOGICAL_SIZE * dpr;
+    canvas.style.width = `${LOGICAL_SIZE}px`;
+    canvas.style.height = `${LOGICAL_SIZE}px`;
+    ctx.scale(dpr, dpr);
+
+    const width = LOGICAL_SIZE;
+    const height = LOGICAL_SIZE;
 
     // 清除畫布
     ctx.clearRect(0, 0, width, height);
@@ -386,9 +411,7 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
   return (
     <canvas
       ref={canvasRef}
-      width={160}
-      height={160}
-      className="w-full h-auto mx-auto"
+      className="max-w-full h-auto mx-auto block"
     />
   );
 }

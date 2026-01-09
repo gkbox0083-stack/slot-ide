@@ -3,6 +3,7 @@ import type { SymbolId } from '../types/board.js';
 import type { OutcomeManager } from './outcome-manager.js';
 import type { SymbolManager } from './symbol-manager.js';
 import type { LinesManager } from './lines-manager.js';
+import { isWildSymbol, isScatterSymbol, canWildReplace } from './symbol-manager.js';
 
 /**
  * Pool 盤池結構
@@ -47,7 +48,7 @@ export class PoolBuilder {
     private outcomeManager: OutcomeManager,
     private symbolManager: SymbolManager,
     private linesManager: LinesManager
-  ) {}
+  ) { }
 
   /**
    * 設定盤面配置（V2 新增）
@@ -71,7 +72,7 @@ export class PoolBuilder {
    */
   buildPools(cap?: number): BuildResult {
     const targetCap = cap ?? this.defaultCap;
-    
+
     if (targetCap < 1 || targetCap > this.maxCap) {
       throw new Error(`Cap must be between 1 and ${this.maxCap}`);
     }
@@ -185,7 +186,7 @@ export class PoolBuilder {
   }
 
   /**
-   * 計算一條線的連續符號數
+   * 計算一條線的連續符號數（含 Wild 替代）
    * @param board 盤面
    * @param positions 線條位置 [col, row][]
    * @returns { symbol, count } 或 null（如果沒有連續符號）
@@ -199,7 +200,7 @@ export class PoolBuilder {
     }
 
     // 過濾掉超出當前盤面範圍的位置
-    const validPositions = positions.filter(([col, row]) => 
+    const validPositions = positions.filter(([col, row]) =>
       col < board.cols && row < board.rows
     );
 
@@ -207,20 +208,52 @@ export class PoolBuilder {
       return null; // 不足 3 個有效位置，無法成獎
     }
 
-    // 取得第一個符號
-    const firstPos = validPositions[0];
-    const firstSymbol = board.reels[firstPos[0]][firstPos[1]];
-    let count = 1;
+    // 取得線上的符號
+    const lineSymbols: SymbolId[] = validPositions.map(
+      ([col, row]) => board.reels[col][row]
+    );
 
-    // 從左到右檢查連續相同符號
-    for (let i = 1; i < validPositions.length; i++) {
-      const pos = validPositions[i];
-      const symbol = board.reels[pos[0]][pos[1]];
+    // 使用與 settlement.ts 相同的 Wild 替代邏輯
+    const symbolDefs = this.symbolManager.getAll();
+    const getSymbolDef = (id: SymbolId) => symbolDefs.find(s => s.id === id);
 
-      if (symbol === firstSymbol) {
+    // 找出目標符號（第一個非 Wild、非 Scatter 的符號）
+    let targetId: SymbolId | null = null;
+    let targetDef = null;
+
+    for (const id of lineSymbols) {
+      const def = getSymbolDef(id);
+      if (def && !isWildSymbol(def) && !isScatterSymbol(def)) {
+        targetId = id;
+        targetDef = def;
+        break;
+      }
+    }
+
+    // 如果全是 Wild/Scatter，不計算
+    if (!targetId || !targetDef) {
+      return null;
+    }
+
+    // 從左到右計算連續數（含 Wild 替代）
+    let count = 0;
+
+    for (let i = 0; i < lineSymbols.length; i++) {
+      const currentId = lineSymbols[i];
+      const currentDef = getSymbolDef(currentId);
+
+      if (!currentDef) {
+        break;
+      }
+
+      if (currentId === targetId) {
+        // 相同符號
+        count++;
+      } else if (isWildSymbol(currentDef) && canWildReplace(currentDef, targetDef)) {
+        // Wild 替代
         count++;
       } else {
-        // 遇到不同符號，停止
+        // 不匹配，停止
         break;
       }
     }
@@ -228,7 +261,7 @@ export class PoolBuilder {
     // 至少要有 3 個連續符號才算成獎
     if (count >= 3) {
       return {
-        symbol: firstSymbol,
+        symbol: targetId,
         count,
       };
     }
