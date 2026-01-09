@@ -70,24 +70,12 @@ export function PoolPanel() {
       // 同步盤面配置
       poolBuilder.setBoardConfig(boardConfig);
 
-      // 同步符號
-      symbols.forEach((symbol) => {
-        if (symbolManager.getById(symbol.id)) {
-          symbolManager.update(symbol);
-        } else {
-          symbolManager.add(symbol);
-        }
-      });
+      // 同步符號（完整替換）
+      symbolManager.setSymbols(symbols);
 
-      // 同步 Outcomes
+      // 同步 Outcomes（完整替換）
       const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
-      allOutcomes.forEach((outcome) => {
-        if (outcomeManager.getById(outcome.id)) {
-          outcomeManager.update(outcome);
-        } else {
-          outcomeManager.add(outcome);
-        }
-      });
+      outcomeManager.setOutcomes(allOutcomes);
 
       // 同步線路配置 (Fix: Pay Lines Not Updating)
       linesManager.setLinesConfig(linesConfig);
@@ -130,8 +118,8 @@ export function PoolPanel() {
             type="button"
             onClick={() => handleBoardRowsChange(3)}
             className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${boardConfig.rows === 3
-                ? 'bg-primary-600 text-white ring-2 ring-primary-400'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+              ? 'bg-primary-600 text-white ring-2 ring-primary-400'
+              : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
               }`}
           >
             5 × 3
@@ -140,8 +128,8 @@ export function PoolPanel() {
             type="button"
             onClick={() => handleBoardRowsChange(4)}
             className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${boardConfig.rows === 4
-                ? 'bg-primary-600 text-white ring-2 ring-primary-400'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+              ? 'bg-primary-600 text-white ring-2 ring-primary-400'
+              : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
               }`}
           >
             5 × 4
@@ -165,8 +153,8 @@ export function PoolPanel() {
               key={cap}
               onClick={() => setPoolCap(cap)}
               className={`flex-1 py-2 text-sm rounded ${poolCap === cap
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                ? 'bg-primary-600 text-white'
+                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
                 }`}
             >
               {cap}
@@ -264,8 +252,8 @@ export function PoolPanel() {
               <div
                 key={pool.outcomeId}
                 className={`p-2 rounded flex justify-between items-center ${pool.isFull
-                    ? 'bg-green-900/20 border border-green-700'
-                    : 'bg-yellow-900/20 border border-yellow-700'
+                  ? 'bg-green-900/20 border border-green-700'
+                  : 'bg-yellow-900/20 border border-yellow-700'
                   }`}
               >
                 <span className="text-sm text-surface-300">{pool.outcomeName}</span>

@@ -106,6 +106,14 @@ export class OutcomeManager {
   }
 
   /**
+   * 設定所有 Outcomes（完整替換）
+   * 用於從 Store 同步設定
+   */
+  setOutcomes(outcomes: Outcome[]): void {
+    this.outcomes = [...outcomes];
+  }
+
+  /**
    * 計算總權重
    */
   private getTotalWeight(): number {

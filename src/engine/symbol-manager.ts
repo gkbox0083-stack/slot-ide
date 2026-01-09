@@ -138,12 +138,12 @@ export class SymbolManager {
         appearanceWeight: 3,
         ngWeight: 3,
         fgWeight: 5,
-        scatterConfig: { 
-          triggerCount: 3, 
-          freeSpinCount: 10, 
-          enableRetrigger: true, 
-          enableMultiplier: true, 
-          multiplierValue: 2 
+        scatterConfig: {
+          triggerCount: 3,
+          freeSpinCount: 10,
+          enableRetrigger: true,
+          enableMultiplier: true,
+          multiplierValue: 2
         },
       },
     ];
@@ -200,6 +200,14 @@ export class SymbolManager {
   }
 
   /**
+   * 設定所有 Symbols（完整替換）
+   * 用於從 Store 同步設定
+   */
+  setSymbols(symbols: SymbolDefinition[]): void {
+    this.symbols = [...symbols];
+  }
+
+  /**
    * 取得指定符號的連線分數
    * @param id 符號 ID
    * @param count 連線數量
@@ -235,7 +243,7 @@ export class SymbolManager {
    */
   private getTotalWeightByPhase(phase: 'ng' | 'fg'): number {
     return this.symbols.reduce(
-      (sum, symbol) => sum + (phase === 'ng' ? symbol.ngWeight : symbol.fgWeight), 
+      (sum, symbol) => sum + (phase === 'ng' ? symbol.ngWeight : symbol.fgWeight),
       0
     );
   }
@@ -363,17 +371,17 @@ export function getNormalSymbols(symbols: SymbolDefinition[]): SymbolDefinition[
  * 檢查 Wild 是否可以替代指定符號
  */
 export function canWildReplace(
-  wild: SymbolDefinition, 
+  wild: SymbolDefinition,
   target: SymbolDefinition
 ): boolean {
   if (!isWildSymbol(wild) || !wild.wildConfig) {
     return false;
   }
-  
+
   if (isNormalSymbol(target)) {
     return wild.wildConfig.canReplaceNormal;
   }
-  
+
   // target 是 wild 或 scatter
   return wild.wildConfig.canReplaceSpecial;
 }
@@ -382,7 +390,7 @@ export function canWildReplace(
  * 根據遊戲階段取得符號權重
  */
 export function getSymbolWeight(
-  symbol: SymbolDefinition, 
+  symbol: SymbolDefinition,
   phase: 'ng' | 'fg'
 ): number {
   return phase === 'ng' ? symbol.ngWeight : symbol.fgWeight;
