@@ -93,6 +93,48 @@ export function GameControlBar() {
                 setWin(winAmount);
             }
 
+            // === P2-09 Free Spin 觸發處理 ===
+
+            // 1. 觸發 Free Spin（Base Game → Free Game）
+            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin) {
+                const scatterCount = packet.meta.scatterCount || 0;
+                const config = useGameConfigStore.getState().freeSpinConfig;
+                freeSpinState.triggerFreeSpin(scatterCount, config);
+            }
+
+            // 2. Free Spin 模式下的處理
+            if (isInFreeSpin) {
+                const config = useGameConfigStore.getState().freeSpinConfig;
+
+                // 2a. 處理 Retrigger（Free Game 中再次觸發）
+                if (packet.meta?.triggeredFreeSpin && config.enableRetrigger) {
+                    freeSpinState.retrigger(config.retriggerSpinCount);
+                }
+
+                // 2b. 累積獎金
+                freeSpinState.addWin(winAmount);
+
+                // 2c. 記錄歷史
+                freeSpinState.addHistory({
+                    spinIndex: freeSpinState.totalSpins - freeSpinState.remainingSpins + 1,
+                    board: packet.board,
+                    win: winAmount,
+                    multipliedWin: winAmount,
+                    isRetrigger: packet.meta?.triggeredFreeSpin || false,
+                });
+
+                // 2d. 消耗次數
+                freeSpinState.consumeSpin();
+
+                // 2e. 檢查是否結束（在 consumeSpin 後檢查）
+                const currentRemaining = useFreeSpinStore.getState().remainingSpins;
+                if (currentRemaining <= 0) {
+                    freeSpinState.endFreeSpin();
+                }
+            }
+
+            // === End P2-09 ===
+
             accumulateSpinResult(winAmount, isInFreeSpin);
 
         } catch (error) {
