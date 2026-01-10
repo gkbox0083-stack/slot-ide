@@ -326,93 +326,123 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
         </div>
       )}
 
-      {/* Scatter 設定 */}
-      {editedSymbol.type === 'scatter' && editedSymbol.scatterConfig && (
-        <div className="p-3 bg-purple-900/20 border border-purple-700/50 rounded-lg mb-3">
-          <h6 className="text-xs font-semibold text-purple-400 mb-2">⚙️ Scatter 設定</h6>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <div>
-              <label className="text-xs text-surface-400 block mb-1">觸發數量</label>
+      {/* Free Spin 觸發設定 (P2-10 通用版) */}
+      <div className="p-3 bg-surface-900/50 rounded-lg border border-surface-700/50 space-y-4">
+        <label className="flex items-center gap-2 text-sm font-bold text-primary-400 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={editedSymbol.fsTriggerConfig?.enabled || false}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              setEditedSymbol({
+                ...editedSymbol,
+                fsTriggerConfig: {
+                  enabled,
+                  triggerCount: editedSymbol.fsTriggerConfig?.triggerCount ?? 3,
+                  freeSpinCount: editedSymbol.fsTriggerConfig?.freeSpinCount ?? 10,
+                  enableRetrigger: editedSymbol.fsTriggerConfig?.enableRetrigger ?? true,
+                  retriggerSpinCount: editedSymbol.fsTriggerConfig?.retriggerSpinCount ?? 5,
+                  enableMultiplier: editedSymbol.fsTriggerConfig?.enableMultiplier ?? true,
+                  multiplierValue: editedSymbol.fsTriggerConfig?.multiplierValue ?? 2,
+                }
+              });
+            }}
+            className="rounded border-surface-600 text-primary-600 focus:ring-primary-500"
+          />
+          🎰 啟用 Free Spin 觸發
+        </label>
+
+        {editedSymbol.fsTriggerConfig?.enabled && (
+          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400">觸發數量</label>
               <select
-                value={editedSymbol.scatterConfig.triggerCount}
+                value={editedSymbol.fsTriggerConfig.triggerCount}
                 onChange={(e) => setEditedSymbol({
                   ...editedSymbol,
-                  scatterConfig: { ...editedSymbol.scatterConfig!, triggerCount: Number(e.target.value) }
+                  fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, triggerCount: Number(e.target.value) }
                 })}
                 className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
               >
-                {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} 個</option>)}
+                {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} 個符號</option>)}
               </select>
             </div>
-            <div>
-              <label className="text-xs text-surface-400 block mb-1">Free Spin 次數</label>
+            <div className="space-y-1">
+              <label className="text-xs text-surface-400">FS 次數</label>
               <input
                 type="number"
-                value={editedSymbol.scatterConfig.freeSpinCount}
+                value={editedSymbol.fsTriggerConfig.freeSpinCount}
                 onChange={(e) => setEditedSymbol({
                   ...editedSymbol,
-                  scatterConfig: { ...editedSymbol.scatterConfig!, freeSpinCount: Number(e.target.value) }
+                  fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, freeSpinCount: Math.max(1, Number(e.target.value)) }
                 })}
                 className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+                min={1}
+                max={100}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-surface-300">
-              <input
-                type="checkbox"
-                checked={editedSymbol.scatterConfig.enableRetrigger}
-                onChange={(e) => setEditedSymbol({
-                  ...editedSymbol,
-                  scatterConfig: { ...editedSymbol.scatterConfig!, enableRetrigger: e.target.checked }
-                })}
-                className="rounded border-surface-600"
-              />
-              啟用 Retrigger
-              {editedSymbol.scatterConfig.enableRetrigger && (
-                <div className="flex items-center gap-1 ml-2">
-                  <span className="text-xs text-surface-400">額外次數:</span>
-                  <input
-                    type="number"
-                    value={editedSymbol.scatterConfig.retriggerSpinCount ?? 5}
-                    onChange={(e) => setEditedSymbol({
-                      ...editedSymbol,
-                      scatterConfig: { ...editedSymbol.scatterConfig!, retriggerSpinCount: Math.max(1, Number(e.target.value) || 5) }
-                    })}
-                    className="w-14 px-2 py-0.5 bg-surface-900 border border-surface-600 rounded text-xs text-surface-200 text-center"
-                    min={1}
-                    max={50}
-                  />
-                </div>
-              )}
-            </label>
-            <label className="flex items-center gap-2 text-sm text-surface-300">
-              <input
-                type="checkbox"
-                checked={editedSymbol.scatterConfig.enableMultiplier}
-                onChange={(e) => setEditedSymbol({
-                  ...editedSymbol,
-                  scatterConfig: { ...editedSymbol.scatterConfig!, enableMultiplier: e.target.checked }
-                })}
-                className="rounded border-surface-600"
-              />
-              啟用 Multiplier
-              {editedSymbol.scatterConfig.enableMultiplier && (
-                <select
-                  value={editedSymbol.scatterConfig.multiplierValue}
+
+            <div className="col-span-2 space-y-2 pt-2 border-t border-surface-700/50">
+              <label className="flex items-center gap-2 text-sm text-surface-300">
+                <input
+                  type="checkbox"
+                  checked={editedSymbol.fsTriggerConfig.enableRetrigger}
                   onChange={(e) => setEditedSymbol({
                     ...editedSymbol,
-                    scatterConfig: { ...editedSymbol.scatterConfig!, multiplierValue: Number(e.target.value) }
+                    fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, enableRetrigger: e.target.checked }
                   })}
-                  className="ml-2 px-2 py-0.5 bg-surface-900 border border-surface-600 rounded text-xs text-surface-200"
-                >
-                  {[2, 3, 5, 10].map(n => <option key={n} value={n}>{n}x</option>)}
-                </select>
-              )}
-            </label>
+                  className="rounded border-surface-600"
+                />
+                支援 Retrigger
+                {editedSymbol.fsTriggerConfig.enableRetrigger && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-surface-500">次數:</span>
+                    <input
+                      type="number"
+                      value={editedSymbol.fsTriggerConfig.retriggerSpinCount}
+                      onChange={(e) => setEditedSymbol({
+                        ...editedSymbol,
+                        fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, retriggerSpinCount: Math.max(1, Number(e.target.value)) }
+                      })}
+                      className="w-16 px-2 py-1 bg-surface-900 border border-surface-600 rounded text-xs text-center"
+                    />
+                  </div>
+                )}
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-surface-300">
+                <input
+                  type="checkbox"
+                  checked={editedSymbol.fsTriggerConfig.enableMultiplier}
+                  onChange={(e) => setEditedSymbol({
+                    ...editedSymbol,
+                    fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, enableMultiplier: e.target.checked }
+                  })}
+                  className="rounded border-surface-600"
+                />
+                固定倍率 (FG)
+                {editedSymbol.fsTriggerConfig.enableMultiplier && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-surface-500">倍率:</span>
+                    <input
+                      type="number"
+                      value={editedSymbol.fsTriggerConfig.multiplierValue}
+                      onChange={(e) => setEditedSymbol({
+                        ...editedSymbol,
+                        fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, multiplierValue: Math.max(1, Math.min(10, Number(e.target.value))) }
+                      })}
+                      className="w-16 px-2 py-1 bg-surface-900 border border-surface-600 rounded text-xs text-center"
+                      min={1}
+                      max={10}
+                    />
+                    <span className="text-xs text-surface-500">x</span>
+                  </div>
+                )}
+              </label>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 操作按鈕 */}
       <div className="flex gap-2">
@@ -469,7 +499,8 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
     if (symbol.type === 'wild') {
       symbol.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
     } else if (symbol.type === 'scatter') {
-      symbol.scatterConfig = {
+      symbol.fsTriggerConfig = {
+        enabled: false,
         triggerCount: 3,
         freeSpinCount: 10,
         enableRetrigger: true,

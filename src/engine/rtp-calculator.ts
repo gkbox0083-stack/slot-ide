@@ -2,7 +2,6 @@ import type { SymbolDefinition } from '../types/symbol.js';
 import type { OutcomeConfig, Outcome } from '../types/outcome.js';
 import type { FreeSpinConfig } from '../types/free-spin.js';
 import type { BoardConfig } from '../types/board.js';
-import { isScatterSymbol } from './symbol-manager.js';
 
 /**
  * RTP 分解結構
@@ -38,16 +37,16 @@ export interface SimulationStats {
  */
 export function calculateTheoreticalNGRTP(ngOutcomes: Outcome[]): number {
   const totalWeight = ngOutcomes.reduce((sum, o) => sum + o.weight, 0);
-  
+
   if (totalWeight === 0) return 0;
-  
+
   let weightedSum = 0;
   for (const outcome of ngOutcomes) {
     const probability = outcome.weight / totalWeight;
     const avgMultiplier = (outcome.multiplierRange.min + outcome.multiplierRange.max) / 2;
     weightedSum += probability * avgMultiplier;
   }
-  
+
   return weightedSum * 100; // 轉換為百分比
 }
 
@@ -56,16 +55,16 @@ export function calculateTheoreticalNGRTP(ngOutcomes: Outcome[]): number {
  */
 export function calculateTheoreticalFGRTP(fgOutcomes: Outcome[]): number {
   const totalWeight = fgOutcomes.reduce((sum, o) => sum + o.weight, 0);
-  
+
   if (totalWeight === 0) return 0;
-  
+
   let weightedSum = 0;
   for (const outcome of fgOutcomes) {
     const probability = outcome.weight / totalWeight;
     const avgMultiplier = (outcome.multiplierRange.min + outcome.multiplierRange.max) / 2;
     weightedSum += probability * avgMultiplier;
   }
-  
+
   return weightedSum * 100;
 }
 
@@ -75,7 +74,7 @@ export function calculateTheoreticalFGRTP(fgOutcomes: Outcome[]): number {
 function binomialCoefficient(n: number, k: number): number {
   if (k > n) return 0;
   if (k === 0 || k === n) return 1;
-  
+
   let result = 1;
   for (let i = 0; i < k; i++) {
     result = result * (n - i) / (i + 1);
@@ -92,35 +91,34 @@ function binomialProbability(n: number, k: number, p: number): number {
 }
 
 /**
- * 計算 Scatter 觸發機率（理論值）
- * 簡化計算：基於符號權重
+ * 計算 Free Spin 觸發機率（理論值）
+ * 基於符號權重及二項分布
  */
-export function calculateScatterTriggerProbability(
+export function calculateFSTriggerProbability(
   symbols: SymbolDefinition[],
   boardConfig: BoardConfig,
-  triggerCount: number,
   phase: 'ng' | 'fg' = 'ng',
 ): number {
-  const scatterSymbol = symbols.find(isScatterSymbol);
-  if (!scatterSymbol) return 0;
-  
-  const scatterWeight = phase === 'ng' ? scatterSymbol.ngWeight : scatterSymbol.fgWeight;
-  const normalSymbols = symbols.filter(s => !isScatterSymbol(s));
-  const totalWeight = normalSymbols.reduce((sum, s) => {
+  const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
+  if (!triggerSymbol || !triggerSymbol.fsTriggerConfig) return 0;
+
+  const weight = phase === 'ng' ? triggerSymbol.ngWeight : triggerSymbol.fgWeight;
+  const totalWeight = symbols.reduce((sum, s) => {
     return sum + (phase === 'ng' ? s.ngWeight : s.fgWeight);
-  }, 0) + scatterWeight;
-  
+  }, 0);
+
   if (totalWeight === 0) return 0;
-  
-  const scatterProbPerCell = scatterWeight / totalWeight;
+
+  const probPerCell = weight / totalWeight;
   const totalCells = boardConfig.cols * boardConfig.rows;
-  
-  // 計算至少出現 triggerCount 個 Scatter 的機率（二項分布）
+  const triggerCount = triggerSymbol.fsTriggerConfig.triggerCount;
+
+  // 計算至少出現 triggerCount 個符號的機率（二項分布）
   let probability = 0;
   for (let k = triggerCount; k <= totalCells; k++) {
-    probability += binomialProbability(totalCells, k, scatterProbPerCell);
+    probability += binomialProbability(totalCells, k, probPerCell);
   }
-  
+
   return probability * 100; // 轉換為百分比
 }
 
@@ -135,17 +133,17 @@ export function calculateExpectedFreeSpins(
   if (!enableRetrigger || retriggerProbability === 0) {
     return baseSpins;
   }
-  
+
   // 公式：n / (1 - n × p_retrigger)
   // 其中 n = 初始次數，p_retrigger = 每次 spin 的 retrigger 機率
   const pPerSpin = retriggerProbability / 100;
   const denominator = 1 - baseSpins * pPerSpin;
-  
+
   // 防止除以零或負數
   if (denominator <= 0) {
     return baseSpins * 2; // 回退到合理的上限
   }
-  
+
   return baseSpins / denominator;
 }
 
@@ -160,9 +158,13 @@ export function calculateTheoreticalRTPBreakdown(
 ): RTPBreakdown {
   // 1. 計算 NG RTP
   const ngRTP = calculateTheoreticalNGRTP(outcomeConfig.ngOutcomes);
-  
+
+  // P2-10: 優先取得符號內定義的 FS 觸發配置
+  const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
+  const activeFSConfig = triggerSymbol?.fsTriggerConfig || freeSpinConfig;
+
   // 如果 Free Spin 未啟用，只返回 NG RTP
-  if (!freeSpinConfig.enabled) {
+  if (!activeFSConfig.enabled) {
     return {
       ngRTP,
       fgRTPContribution: 0,
@@ -172,40 +174,37 @@ export function calculateTheoreticalRTPBreakdown(
       avgFGWinPerSpin: 0,
     };
   }
-  
+
   // 2. 計算 FG 觸發機率
-  const fgTriggerProbability = calculateScatterTriggerProbability(
+  const fgTriggerProbability = calculateFSTriggerProbability(
     symbols,
     boardConfig,
-    freeSpinConfig.triggerCount,
     'ng',
   );
-  
+
   // 3. 計算 Retrigger 機率（在 FG 中）
-  const retriggerProbability = freeSpinConfig.enableRetrigger
-    ? calculateScatterTriggerProbability(symbols, boardConfig, freeSpinConfig.triggerCount, 'fg')
+  const retriggerProbability = activeFSConfig.enableRetrigger
+    ? calculateFSTriggerProbability(symbols, boardConfig, 'fg')
     : 0;
-  
+
   // 4. 計算預期 Free Spin 次數
   const expectedFreeSpins = calculateExpectedFreeSpins(
-    freeSpinConfig.baseSpinCount,
+    activeFSConfig.freeSpinCount,
     retriggerProbability,
-    freeSpinConfig.enableRetrigger,
+    activeFSConfig.enableRetrigger,
   );
-  
+
   // 5. 計算平均 FG 獎金
   const fgRTPPerSpin = calculateTheoreticalFGRTP(outcomeConfig.fgOutcomes);
   const avgFGWinPerSpin = fgRTPPerSpin / 100; // 轉換為倍率
-  
+
   // 6. 計算 FG 對總 RTP 的貢獻
-  // FG RTP 貢獻 = P(觸發) × E[總 FG 獎金]
-  // E[總 FG 獎金] = 預期次數 × 平均每次獎金 × Multiplier
-  const multiplier = freeSpinConfig.enableMultiplier ? freeSpinConfig.multiplierValue : 1;
+  const multiplier = activeFSConfig.enableMultiplier ? activeFSConfig.multiplierValue : 1;
   const fgRTPContribution = (fgTriggerProbability / 100) * expectedFreeSpins * avgFGWinPerSpin * multiplier * 100;
-  
+
   // 7. 計算總 RTP
   const totalRTP = ngRTP + fgRTPContribution;
-  
+
   return {
     ngRTP,
     fgRTPContribution,
@@ -223,19 +222,19 @@ export function calculateActualRTPFromStats(stats: SimulationStats): RTPBreakdow
   const ngRTP = stats.totalBet > 0 ? (stats.ngWin / stats.totalBet) * 100 : 0;
   const fgRTPContribution = stats.totalBet > 0 ? (stats.fgWin / stats.totalBet) * 100 : 0;
   const totalRTP = ngRTP + fgRTPContribution;
-  
-  const fgTriggerProbability = stats.ngSpins > 0 
-    ? (stats.fgTriggerCount / stats.ngSpins) * 100 
+
+  const fgTriggerProbability = stats.ngSpins > 0
+    ? (stats.fgTriggerCount / stats.ngSpins) * 100
     : 0;
-  
-  const avgFGWinPerSpin = stats.fgSpins > 0 
-    ? stats.fgWin / stats.fgSpins 
+
+  const avgFGWinPerSpin = stats.fgSpins > 0
+    ? stats.fgWin / stats.fgSpins
     : 0;
-  
-  const expectedFreeSpins = stats.fgTriggerCount > 0 
-    ? stats.fgSpins / stats.fgTriggerCount 
+
+  const expectedFreeSpins = stats.fgTriggerCount > 0
+    ? stats.fgSpins / stats.fgTriggerCount
     : 0;
-  
+
   return {
     ngRTP,
     fgRTPContribution,
@@ -254,14 +253,14 @@ export function calculateAdditionalStats(stats: SimulationStats): {
   avgWin: number;
   volatility: string;
 } {
-  const hitRate = stats.totalSpins > 0 
-    ? (stats.hitCount / stats.totalSpins) * 100 
+  const hitRate = stats.totalSpins > 0
+    ? (stats.hitCount / stats.totalSpins) * 100
     : 0;
-  
-  const avgWin = stats.hitCount > 0 
-    ? stats.totalWin / stats.hitCount 
+
+  const avgWin = stats.hitCount > 0
+    ? stats.totalWin / stats.hitCount
     : 0;
-  
+
   // 簡易波動性判斷
   let volatility: string;
   if (hitRate > 35) {
@@ -271,7 +270,7 @@ export function calculateAdditionalStats(stats: SimulationStats): {
   } else {
     volatility = '高';
   }
-  
+
   return { hitRate, avgWin, volatility };
 }
 

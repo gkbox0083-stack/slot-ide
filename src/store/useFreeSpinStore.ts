@@ -7,7 +7,7 @@ import type { FreeSpinState, FreeSpinResult, FreeSpinConfig } from '../types/fre
 interface FreeSpinStoreState extends FreeSpinState {
   // 配置
   config: FreeSpinConfig;
-  
+
   // 歷史紀錄
   history: FreeSpinResult[];
 }
@@ -18,7 +18,7 @@ interface FreeSpinStoreState extends FreeSpinState {
 interface FreeSpinStoreActions {
   // 配置管理
   setConfig: (config: FreeSpinConfig) => void;
-  
+
   // 狀態管理
   triggerFreeSpin: (scatterCount: number, config: FreeSpinConfig) => void;
   consumeSpin: () => void;
@@ -26,7 +26,7 @@ interface FreeSpinStoreActions {
   retrigger: (additionalSpins: number) => void;
   endFreeSpin: () => number; // 返回累積獎金
   reset: () => void;
-  
+
   // 歷史紀錄
   addHistory: (result: FreeSpinResult) => void;
   clearHistory: () => void;
@@ -38,7 +38,7 @@ interface FreeSpinStoreActions {
 const defaultConfig: FreeSpinConfig = {
   enabled: true,
   triggerCount: 3,
-  baseSpinCount: 10,
+  freeSpinCount: 10,
   enableRetrigger: true,
   retriggerSpinCount: 5,
   enableMultiplier: true,
@@ -66,13 +66,13 @@ const initialState: FreeSpinStoreState = {
 export const useFreeSpinStore = create<FreeSpinStoreState & FreeSpinStoreActions>()(
   (set, get) => ({
     ...initialState,
-    
+
     setConfig: (config) => set({ config }),
-    
+
     triggerFreeSpin: (scatterCount, config) => {
-      const spins = config.baseSpinCount;
+      const spins = config.freeSpinCount;
       const multiplier = config.enableMultiplier ? config.multiplierValue : 1;
-      
+
       set({
         mode: 'free',
         remainingSpins: spins,
@@ -84,26 +84,26 @@ export const useFreeSpinStore = create<FreeSpinStoreState & FreeSpinStoreActions
         history: [],
       });
     },
-    
+
     consumeSpin: () => {
       set((state) => ({
         remainingSpins: Math.max(0, state.remainingSpins - 1),
       }));
     },
-    
+
     addWin: (win) => {
       set((state) => ({
         accumulatedWin: state.accumulatedWin + win,
       }));
     },
-    
+
     retrigger: (additionalSpins) => {
       set((state) => ({
         remainingSpins: state.remainingSpins + additionalSpins,
         totalSpins: state.totalSpins + additionalSpins,
       }));
     },
-    
+
     endFreeSpin: () => {
       const { accumulatedWin } = get();
       set({
@@ -115,15 +115,15 @@ export const useFreeSpinStore = create<FreeSpinStoreState & FreeSpinStoreActions
       });
       return accumulatedWin;
     },
-    
+
     reset: () => set(initialState),
-    
+
     addHistory: (result) => {
       set((state) => ({
         history: [...state.history, result],
       }));
     },
-    
+
     clearHistory: () => set({ history: [] }),
   })
 );
@@ -173,8 +173,8 @@ export function initializeFreeSpinState(
 ): FreeSpinState {
   return {
     mode: 'free',
-    remainingSpins: config.baseSpinCount,
-    totalSpins: config.baseSpinCount,
+    remainingSpins: config.freeSpinCount,
+    totalSpins: config.freeSpinCount,
     accumulatedWin: 0,
     currentMultiplier: config.enableMultiplier ? config.multiplierValue : 1,
     triggerCount: scatterCount,

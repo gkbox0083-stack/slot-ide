@@ -28,7 +28,7 @@ export {
 export {
   calculateTheoreticalNGRTP,
   calculateTheoreticalFGRTP,
-  calculateScatterTriggerProbability,
+  calculateFSTriggerProbability,
   calculateExpectedFreeSpins,
   calculateTheoreticalRTPBreakdown,
   calculateActualRTPFromStats,

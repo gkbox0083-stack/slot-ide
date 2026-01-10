@@ -1,4 +1,4 @@
-# P2-11 Scatter 價值計算優化
+# P2-11 FS 觸發符號價值計算優化
 
 > [!NOTE]
 > 此議題暫時擱置，待 P2-10 Free Spin 控制整合完成後再處理。
@@ -7,20 +7,20 @@
 
 ### 當前行為
 
-Pool Builder 根據盤面的「連線得分」篩選盤面，但 Scatter 的 payouts = 0，導致：
-- Scatter 越多 → 可形成連線的符號越少 → 盤面分數越低
+Pool Builder 根據盤面的「連線得分」篩選盤面，但觸發符號 (如 Scatter) 的 payouts 往往較低或為 0，導致：
+- 觸發符號越多 → 可形成連線的符號越少 → 盤面分數越低
 - 分數不在目標 Outcome 範圍 → 盤面被丟棄
-- 即使 Scatter 權重很高，符合分數範圍的盤面中 Scatter 仍然很少
+- 即使符號權重很高，符合分數範圍的盤面中觸發符號仍然很少
 
 ### 實際案例
 
 測試設定：
-- 符號：L4 (weight:45)、SCATTER (weight:3000)
+- 符號：L4 (weight:45)、觸發符號 (weight:3000)
 - Outcome：55 NG (倍率 1x-3x)
 
 結果：
-- 雖然 Scatter 權重佔 98.5%，但建出的盤面中 Scatter 很少
-- 因為 Scatter 多的盤面分數低，被篩掉了
+- 雖然觸發符號權重佔 98.5%，但建出的盤面中觸發符號很少
+- 因為觸發符號多的盤面分數低，被篩掉了
 
 ---
 
@@ -28,24 +28,23 @@ Pool Builder 根據盤面的「連線得分」篩選盤面，但 Scatter 的 pay
 
 ### 設計思路
 
-**Scatter 的價值 = 本身得分 + 觸發 Free Spin 的預期總分**
+**觸發符號的價值 = 本身得分 + 觸發 Free Spin 的預期總分**
 
-當盤面包含 ≥3 個 Scatter 時，該盤面的「價值」應計入：
+當盤面包含足夠數量的觸發符號時，該盤面的「價值」應計入：
 1. 連線得分（現有）
-2. Scatter 觸發 Free Spin 的預期收益
+2. 該符號觸發 Free Spin 的預期收益
 
 ### 預期收益計算
 
 ```
-Scatter 價值 = Scatter 數量 × 單次 Scatter 預期價值
-
-單次 Scatter 預期價值 = (Free Spin 次數 × 平均單次 FG 收益) ÷ 觸發所需 Scatter 數
+觸發符號價值 = 符號數量 × 單次預期價值
+單次預期價值 = (Free Spin 次數 × 平均單次 FG 收益) ÷ 觸發所需數量
 ```
 
 或簡化版：
 ```
-if (scatterCount >= triggerCount) {
-  bonus = freeSpinConfig.baseSpinCount × avgFGMultiplier;
+if (count >= triggerCount) {
+  bonus = baseSpinCount × avgFGMultiplier;
   boardScore += bonus;
 }
 ```
@@ -57,8 +56,8 @@ if (scatterCount >= triggerCount) {
 ### 需要修改的檔案
 
 1. **`src/engine/pool-builder.ts`**
-   - `calculateBoardScore()` 函式需要加入 Scatter 價值計算
-   - 需要存取 `FreeSpinConfig` 和 FG Outcomes 的平均倍率
+   - `calculateBoardScore()` 函式需要加入觸發符號價值計算
+   - 需要存取該符號的 `fsTriggerConfig` 和 FG Outcomes 的平均倍率
 
 2. **`src/engine/rtp-calculator.ts`**（可選）
    - 新增 `calculateAvgFGMultiplier()` 函式供 Pool Builder 使用
@@ -74,13 +73,16 @@ if (scatterCount >= triggerCount) {
 private calculateBoardScore(board: Board): number {
   let totalScore = /* 現有連線分數計算 */;
   
-  // 新增 Scatter 價值
-  const scatterCount = this.countScatters(board);
-  const freeSpinConfig = /* 從外部傳入 */;
+  // 新增觸發符號價值
+  const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
+  if (!triggerSymbol) return totalScore;
+
+  const count = this.countSymbol(board, triggerSymbol.id);
+  const config = triggerSymbol.fsTriggerConfig;
   
-  if (scatterCount >= freeSpinConfig.triggerCount) {
+  if (count >= config.triggerCount) {
     // 預設 Free Spin 價值 = 次數 × 平均倍率（例如 10 × 5 = 50）
-    const freeSpinValue = freeSpinConfig.baseSpinCount * 5; // 暫定平均倍率 5x
+    const freeSpinValue = config.freeSpinCount * 5; // 暫定平均倍率 5x
     totalScore += freeSpinValue;
   }
   

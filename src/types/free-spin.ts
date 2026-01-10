@@ -11,7 +11,7 @@ export type FreeSpinMode = 'base' | 'free';
 export interface FreeSpinConfig {
   enabled: boolean;            // 是否啟用 Free Spin 功能
   triggerCount: number;        // Scatter 觸發數量
-  baseSpinCount: number;       // 基礎 Free Spin 次數
+  freeSpinCount: number;       // 基礎 Free Spin 次數
   enableRetrigger: boolean;    // 是否支援 Retrigger
   retriggerSpinCount: number;  // Retrigger 給予的額外次數
   enableMultiplier: boolean;   // 是否啟用 Multiplier

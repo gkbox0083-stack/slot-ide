@@ -9,7 +9,7 @@ import { calculateActualRTPFromStats, calculateAdditionalStats, calculateTheoret
 export function HistoryPanel() {
   const { results, mode } = useSimulationStore();
   const { symbols, outcomeConfig, freeSpinConfig, boardConfig } = useGameConfigStore();
-  
+
   // 計算理論 RTP
   const theoreticalRTP = calculateTheoreticalRTPBreakdown(
     symbols,
@@ -126,12 +126,28 @@ export function HistoryPanel() {
             <span className="text-surface-200">${cumulativeStats.totalBet.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-surface-400">總獲勝:</span>
-            <span className="text-green-400">${cumulativeStats.totalWin.toLocaleString()}</span>
+            <span className="text-surface-400">NG 獲勝:</span>
+            <span className="text-green-400">${cumulativeStats.ngWin.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-surface-400">FG 獲勝:</span>
+            <span className="text-green-400">${cumulativeStats.fgWin.toLocaleString()}</span>
           </div>
           <div className="flex justify-between pt-2 border-t border-surface-700">
-            <span className="text-surface-300 font-semibold">淨損益:</span>
-            <span className={`font-bold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <span className="text-surface-400">NG 損益 (NG Win - Bet):</span>
+            <span className={`font-semibold ${cumulativeStats.ngWin - cumulativeStats.totalBet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              ${(cumulativeStats.ngWin - cumulativeStats.totalBet).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-surface-400">FG 損益 (FG Win):</span>
+            <span className="text-green-400 font-semibold">
+              +${cumulativeStats.fgWin.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between pt-2 border-t border-surface-700 border-double">
+            <span className="text-surface-300 font-bold uppercase tracking-tighter">總淨損益:</span>
+            <span className={`font-bold text-base ${netProfit >= 0 ? 'text-green-400 underline decoration-double' : 'text-red-400'}`}>
               {netProfit >= 0 ? '+' : ''}${netProfit.toLocaleString()}
             </span>
           </div>
@@ -144,10 +160,9 @@ export function HistoryPanel() {
           📊 波動性
         </h4>
         <div className="flex items-center justify-center gap-2">
-          <span className={`text-xl font-bold ${
-            additionalStats.volatility === '高' ? 'text-red-400' :
-            additionalStats.volatility === '中' ? 'text-yellow-400' : 'text-green-400'
-          }`}>
+          <span className={`text-xl font-bold ${additionalStats.volatility === '高' ? 'text-red-400' :
+              additionalStats.volatility === '中' ? 'text-yellow-400' : 'text-green-400'
+            }`}>
             {additionalStats.volatility}
           </span>
           <span className="text-surface-400 text-sm">
@@ -155,11 +170,10 @@ export function HistoryPanel() {
           </span>
         </div>
         <div className="mt-2 h-2 bg-surface-700 rounded-full overflow-hidden">
-          <div 
-            className={`h-full transition-all ${
-              additionalStats.volatility === '高' ? 'bg-red-500 w-1/3' :
-              additionalStats.volatility === '中' ? 'bg-yellow-500 w-2/3' : 'bg-green-500 w-full'
-            }`}
+          <div
+            className={`h-full transition-all ${additionalStats.volatility === '高' ? 'bg-red-500 w-1/3' :
+                additionalStats.volatility === '中' ? 'bg-yellow-500 w-2/3' : 'bg-green-500 w-full'
+              }`}
           />
         </div>
         <div className="flex justify-between text-xs text-surface-500 mt-1">
@@ -179,16 +193,15 @@ export function HistoryPanel() {
             {results.map((result, index) => {
               const rtp = (result.totalWin / result.totalBet) * 100;
               return (
-                <div 
+                <div
                   key={index}
                   className="p-2 bg-surface-900 rounded flex justify-between items-center text-sm"
                 >
                   <span className="text-surface-400">Run #{index + 1}</span>
                   <span className="text-surface-200">{result.totalSpins.toLocaleString()} spins</span>
-                  <span className={`font-semibold ${
-                    rtp > theoreticalRTP.totalRTP * 1.05 ? 'text-red-400' :
-                    rtp < theoreticalRTP.totalRTP * 0.95 ? 'text-yellow-400' : 'text-green-400'
-                  }`}>
+                  <span className={`font-semibold ${rtp > theoreticalRTP.totalRTP * 1.05 ? 'text-red-400' :
+                      rtp < theoreticalRTP.totalRTP * 0.95 ? 'text-yellow-400' : 'text-green-400'
+                    }`}>
                     {rtp.toFixed(2)}%
                   </span>
                 </div>
@@ -224,7 +237,7 @@ interface StatCardProps {
 function StatCard({ label, value, comparison, type }: StatCardProps) {
   const numValue = parseFloat(value);
   let colorClass = 'text-surface-200';
-  
+
   if (type === 'percentage' && comparison !== undefined) {
     if (numValue > comparison * 1.05) {
       colorClass = 'text-red-400'; // 高於理論值 5% 以上
@@ -257,7 +270,7 @@ interface RTPRowProps {
 function RTPRow({ label, actual, theoretical, precision = 2, isTotal }: RTPRowProps) {
   const diff = actual - theoretical;
   const diffPercent = theoretical > 0 ? (diff / theoretical) * 100 : 0;
-  
+
   let diffColor = 'text-surface-500';
   if (Math.abs(diffPercent) > 5) {
     diffColor = diff > 0 ? 'text-red-400' : 'text-yellow-400';

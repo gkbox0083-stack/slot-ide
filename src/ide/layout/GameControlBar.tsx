@@ -97,29 +97,29 @@ export function GameControlBar() {
             // P2-10: 使用 scatterConfig 作為唯一真相來源
 
             // 取得 Scatter 配置
-            const symbols = useGameConfigStore.getState().symbols;
-            const scatterSymbol = symbols.find(s => s.type === 'scatter');
-            const scatterConfig = scatterSymbol?.scatterConfig;
-
             // 1. 觸發 Free Spin（Base Game → Free Game）
-            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin && scatterConfig) {
-                const scatterCount = packet.meta.scatterCount || 0;
-                freeSpinState.triggerFreeSpin(scatterCount, {
+            const symbolsState = useGameConfigStore.getState().symbols;
+            const triggerSymbol = symbolsState.find(s => s.fsTriggerConfig?.enabled);
+            const triggerConfig = triggerSymbol?.fsTriggerConfig;
+
+            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin && triggerConfig) {
+                const count = packet.meta.scatterCount || 0;
+                freeSpinState.triggerFreeSpin(count, {
                     enabled: true,
-                    triggerCount: scatterConfig.triggerCount,
-                    baseSpinCount: scatterConfig.freeSpinCount,
-                    enableRetrigger: scatterConfig.enableRetrigger,
-                    retriggerSpinCount: scatterConfig.retriggerSpinCount ?? 5,
-                    enableMultiplier: scatterConfig.enableMultiplier,
-                    multiplierValue: scatterConfig.multiplierValue,
+                    triggerCount: triggerConfig.triggerCount,
+                    freeSpinCount: triggerConfig.freeSpinCount,
+                    enableRetrigger: triggerConfig.enableRetrigger,
+                    retriggerSpinCount: triggerConfig.retriggerSpinCount ?? 5,
+                    enableMultiplier: triggerConfig.enableMultiplier,
+                    multiplierValue: triggerConfig.multiplierValue,
                 });
             }
 
             // 2. Free Spin 模式下的處理
-            if (isInFreeSpin && scatterConfig) {
+            if (isInFreeSpin && triggerConfig) {
                 // 2a. 處理 Retrigger（Free Game 中再次觸發）
-                if (packet.meta?.triggeredFreeSpin && scatterConfig.enableRetrigger) {
-                    freeSpinState.retrigger(scatterConfig.retriggerSpinCount ?? 5);
+                if (packet.meta?.triggeredFreeSpin && triggerConfig.enableRetrigger) {
+                    freeSpinState.retrigger(triggerConfig.retriggerSpinCount ?? 5);
                 }
 
                 // 2b. 累積獎金
@@ -212,15 +212,14 @@ export function GameControlBar() {
         };
 
         try {
-            for (let i = 0; i < count; i++) {
-                const packet = spinExecutor.spin(
-                    visualConfig,
-                    Object.keys(assets).length > 0 ? assets : undefined,
-                    'base',
-                    1,
-                    baseBet
-                );
+            const symbolsState = useGameConfigStore.getState().symbols;
+            const triggerSymbol = symbolsState.find(s => s.fsTriggerConfig?.enabled);
+            const triggerConfig = triggerSymbol?.fsTriggerConfig;
+            const assetsData = Object.keys(assets).length > 0 ? assets : undefined;
 
+            for (let i = 0; i < count; i++) {
+                // 1. 執行基礎旋轉 (NG)
+                const packet = spinExecutor.spin(visualConfig, assetsData, 'base', 1, baseBet);
                 const winAmount = packet.meta?.win || 0;
 
                 batchStats.totalSpins += 1;
@@ -231,9 +230,44 @@ export function GameControlBar() {
                 if (winAmount > 0) {
                     batchStats.hitCount += 1;
                 }
+
+                // 2. 處理 Free Spin 觸發
+                if (packet.meta?.triggeredFreeSpin && triggerConfig) {
+                    batchStats.fgTriggerCount += 1;
+
+                    let fgRemaining = triggerConfig.freeSpinCount;
+                    const fgMultiplier = triggerConfig.enableMultiplier ? triggerConfig.multiplierValue : 1;
+
+                    // FG 迴圈
+                    while (fgRemaining > 0) {
+                        const fgPacket = spinExecutor.spin(visualConfig, assetsData, 'free', fgMultiplier, baseBet);
+                        const fgWin = fgPacket.meta?.win || 0;
+
+                        batchStats.totalSpins += 1;
+                        batchStats.fgSpins += 1;
+                        batchStats.totalWin += fgWin;
+                        batchStats.fgWin += fgWin;
+                        if (fgWin > 0) {
+                            batchStats.hitCount += 1;
+                        }
+
+                        // 處理 Retrigger
+                        if (fgPacket.meta?.triggeredFreeSpin && triggerConfig.enableRetrigger) {
+                            fgRemaining += (triggerConfig.retriggerSpinCount ?? 5);
+                        }
+
+                        fgRemaining--;
+
+                        // 防護：避免過度遞迴
+                        if (batchStats.fgSpins > count * 100) break;
+                    }
+                }
+
+                // 更新單次最大獲勝倍率 (以 NG 為基準)
                 batchStats.maxWin = Math.max(batchStats.maxWin, winAmount / baseBet);
 
-                if (i % 10 === 0) {
+                // 每 50 次旋轉釋放一次主執行緒，避免 UI 凍結
+                if (i % 50 === 0) {
                     await new Promise(r => setTimeout(r, 0));
                 }
             }

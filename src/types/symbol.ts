@@ -19,16 +19,22 @@ export interface WildConfig {
 }
 
 /**
- * Scatter 設定
+ * Free Spin 觸發設定 (V2 通用版)
  */
-export interface ScatterConfig {
-  triggerCount: number;        // 觸發所需數量（預設 3）
+export interface FreeSpinTriggerConfig {
+  enabled: boolean;            // 是否啟用此符號的 FS 觸發
+  triggerCount: number;        // 觸發所需數量 (預設 3, 支援 1-6)
   freeSpinCount: number;       // 給予的 Free Spin 次數
   enableRetrigger: boolean;    // 是否支援 Retrigger
-  retriggerSpinCount: number;  // Retrigger 額外次數（預設 5）
+  retriggerSpinCount: number;  // Retrigger 額外次數 (預設 5)
   enableMultiplier: boolean;   // 是否啟用 Multiplier
-  multiplierValue: number;     // Multiplier 倍率（預設 2）
+  multiplierValue: number;     // Multiplier 倍率 (預設 2)
 }
+
+/**
+ * Scatter 設定 (相容性保留，建議改用 fsTriggerConfig)
+ */
+export interface ScatterConfig extends Omit<FreeSpinTriggerConfig, 'enabled'> { }
 
 /**
  * Symbol 定義（V2 擴展版）
@@ -50,5 +56,6 @@ export interface SymbolDefinition {
   fgWeight: number;            // 數學層：FG Pool 生成用
   // 特殊符號設定
   wildConfig?: WildConfig;     // 僅 wild 類型有效
-  scatterConfig?: ScatterConfig; // 僅 scatter 類型有效
+  scatterConfig?: ScatterConfig; // 僅 scatter 類型有效 (已棄用, 建議改用 fsTriggerConfig)
+  fsTriggerConfig?: FreeSpinTriggerConfig; // 通用 Free Spin 觸發設定
 }

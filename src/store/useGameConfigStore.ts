@@ -138,7 +138,8 @@ export const defaultSymbols: SymbolDefinition[] = [
     appearanceWeight: 3,
     ngWeight: 3,
     fgWeight: 5,
-    scatterConfig: {
+    fsTriggerConfig: {
+      enabled: true,
       triggerCount: 3,
       freeSpinCount: 10,
       enableRetrigger: true,
@@ -222,7 +223,7 @@ export const defaultVisualConfig: VisualConfig = {
 export const defaultFreeSpinConfig: FreeSpinConfig = {
   enabled: true,
   triggerCount: 3,
-  baseSpinCount: 10,
+  freeSpinCount: 10,
   enableRetrigger: true,
   retriggerSpinCount: 5,
   enableMultiplier: true,
@@ -280,9 +281,25 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       // 符號設定
       setSymbols: (symbols) => set({ symbols }),
       updateSymbol: (symbol) =>
-        set((state) => ({
-          symbols: state.symbols.map((s) => (s.id === symbol.id ? symbol : s)),
-        })),
+        set((state) => {
+          let newSymbols = state.symbols.map((s) => (s.id === symbol.id ? symbol : s));
+
+          // P2-10: 防呆邏輯 - 限制只能有一個符號開啟 Free Spin 觸發
+          if (symbol.fsTriggerConfig?.enabled) {
+            newSymbols = newSymbols.map((s) => {
+              if (s.id === symbol.id) return s;
+              if (s.fsTriggerConfig?.enabled) {
+                return {
+                  ...s,
+                  fsTriggerConfig: { ...s.fsTriggerConfig, enabled: false },
+                };
+              }
+              return s;
+            });
+          }
+
+          return { symbols: newSymbols };
+        }),
       addSymbol: (symbol) =>
         set((state) => ({
           symbols: [...state.symbols, symbol],

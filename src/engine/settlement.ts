@@ -15,7 +15,7 @@ export class Settlement {
   constructor(
     private symbolManager: SymbolManager,
     private linesManager: LinesManager
-  ) {}
+  ) { }
 
   /**
    * 結算盤面，返回 SettlementMeta（V2 擴展）
@@ -46,15 +46,15 @@ export class Settlement {
 
       // 取得線上 5 個符號
       const lineSymbolIds = this.getLineSymbols(board, lineIndex);
-      
+
       // 計算從左到右連續相同符號數（含 Wild 替代）
       const match = this.countConsecutiveWithWild(lineSymbolIds, symbols, pattern.positions);
-      
+
       if (match) {
         // 取得這條線的分數（倍率 × baseBet × multiplier）
         const basePayout = this.symbolManager.getPayout(match.symbol, match.count);
         const payout = basePayout * baseBet * multiplier;
-        
+
         // 建立 WinningLine
         const winningLine: WinningLine = {
           lineIndex,
@@ -68,10 +68,10 @@ export class Settlement {
 
         // 加入中獎線列表
         winningLines.push(winningLine);
-        
+
         // 累加總分
         totalScore += payout;
-        
+
         // 更新 best-line（分數相同時保留第一個）
         if (payout > maxScore) {
           maxScore = payout;
@@ -80,13 +80,17 @@ export class Settlement {
       }
     }
 
-    // 計算 Scatter 數量
-    const scatterCount = this.countScatters(board, symbols);
-    
-    // 判斷是否觸發 Free Spin（只在 base 模式檢查）
-    const scatterDef = symbols.find(isScatterSymbol);
-    const triggerCount = scatterDef?.scatterConfig?.triggerCount ?? 3;
-    const triggeredFreeSpin = phase === 'base' && scatterCount >= triggerCount;
+    // P2-10: 通用 Free Spin 觸發檢查
+    const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
+    let triggeredFreeSpin = false;
+    let scatterCount = 0; // 名稱保留給 SpinPacket 介面使用
+
+    if (triggerSymbol && triggerSymbol.fsTriggerConfig) {
+      scatterCount = this.countSymbol(board, triggerSymbol.id);
+      if (scatterCount >= triggerSymbol.fsTriggerConfig.triggerCount) {
+        triggeredFreeSpin = true;
+      }
+    }
 
     return {
       outcomeId,
@@ -101,20 +105,17 @@ export class Settlement {
   }
 
   /**
-   * 計算盤面上的 Scatter 數量
+   * 計算盤面上的特定符號數量
    */
-  private countScatters(board: Board, symbols: SymbolDefinition[]): number {
+  private countSymbol(board: Board, symbolId: SymbolId): number {
     let count = 0;
-    
     for (const reel of board.reels) {
-      for (const symbolId of reel) {
-        const def = symbols.find(s => s.id === symbolId);
-        if (def && isScatterSymbol(def)) {
+      for (const id of reel) {
+        if (id === symbolId) {
           count++;
         }
       }
     }
-    
     return count;
   }
 
@@ -144,7 +145,7 @@ export class Settlement {
    * @param positions 線路位置
    */
   private countConsecutiveWithWild(
-    symbolIds: SymbolId[], 
+    symbolIds: SymbolId[],
     symbolDefs: SymbolDefinition[],
     positions: [number, number][]
   ): { symbol: SymbolId; count: number; wildPositions: [number, number][] } | null {
@@ -153,11 +154,11 @@ export class Settlement {
     }
 
     const getSymbolDef = (id: SymbolId) => symbolDefs.find(s => s.id === id);
-    
+
     // 找出目標符號（第一個非 Wild、非 Scatter 的符號）
     let targetId: SymbolId | null = null;
     let targetDef: SymbolDefinition | null = null;
-    
+
     for (const id of symbolIds) {
       const def = getSymbolDef(id);
       if (def && !isWildSymbol(def) && !isScatterSymbol(def)) {
@@ -166,24 +167,24 @@ export class Settlement {
         break;
       }
     }
-    
+
     // 如果全是 Wild/Scatter，不計算（Wild 不單獨成線）
     if (!targetId || !targetDef) {
       return null;
     }
-    
+
     // 從左到右計算連續數（含 Wild 替代）
     let count = 0;
     const wildPositions: [number, number][] = [];
-    
+
     for (let i = 0; i < symbolIds.length; i++) {
       const currentId = symbolIds[i];
       const currentDef = getSymbolDef(currentId);
-      
+
       if (!currentDef) {
         break;
       }
-      
+
       if (currentId === targetId) {
         // 相同符號
         count++;
@@ -196,12 +197,12 @@ export class Settlement {
         break;
       }
     }
-    
+
     // 至少 3 連才算中獎
     if (count < 3) {
       return null;
     }
-    
+
     return {
       symbol: targetId,
       count,
@@ -211,19 +212,24 @@ export class Settlement {
 }
 
 /**
- * 計算盤面上的 Scatter 數量（獨立函式版）
+ * 計算盤面上的特定符號數量
  */
-export function countScatters(board: Board, symbols: SymbolDefinition[]): number {
+export function countSymbol(board: Board, symbolId: SymbolId): number {
   let count = 0;
-  
   for (const reel of board.reels) {
-    for (const symbolId of reel) {
-      const def = symbols.find(s => s.id === symbolId);
-      if (def && isScatterSymbol(def)) {
+    for (const id of reel) {
+      if (id === symbolId) {
         count++;
       }
     }
   }
-  
   return count;
+}
+
+/**
+ * 計算盤面上的 Scatter 數量（相容性保留）
+ */
+export function countScatters(board: Board, symbols: SymbolDefinition[]): number {
+  const scatter = symbols.find(s => s.type === 'scatter');
+  return scatter ? countSymbol(board, scatter.id) : 0;
 }
