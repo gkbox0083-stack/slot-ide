@@ -142,6 +142,7 @@ export const defaultSymbols: SymbolDefinition[] = [
       triggerCount: 3,
       freeSpinCount: 10,
       enableRetrigger: true,
+      retriggerSpinCount: 5,
       enableMultiplier: true,
       multiplierValue: 2
     }

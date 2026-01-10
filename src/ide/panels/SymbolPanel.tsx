@@ -139,8 +139,8 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
               role="text"
               aria-label={`類型: ${symbol.type}`}
               className={`text-xs px-2 py-0.5 rounded ${symbol.type === 'wild' ? 'bg-yellow-700 text-yellow-200' :
-                  symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
-                    'bg-surface-600 text-surface-300'
+                symbol.type === 'scatter' ? 'bg-purple-700 text-purple-200' :
+                  'bg-surface-600 text-surface-300'
                 }`}
             >
               {symbol.type}
@@ -205,6 +205,7 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
                   triggerCount: 3,
                   freeSpinCount: 10,
                   enableRetrigger: true,
+                  retriggerSpinCount: 5,
                   enableMultiplier: true,
                   multiplierValue: 2,
                 };
@@ -368,6 +369,22 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
                 className="rounded border-surface-600"
               />
               啟用 Retrigger
+              {editedSymbol.scatterConfig.enableRetrigger && (
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-xs text-surface-400">額外次數:</span>
+                  <input
+                    type="number"
+                    value={editedSymbol.scatterConfig.retriggerSpinCount ?? 5}
+                    onChange={(e) => setEditedSymbol({
+                      ...editedSymbol,
+                      scatterConfig: { ...editedSymbol.scatterConfig!, retriggerSpinCount: Math.max(1, Number(e.target.value) || 5) }
+                    })}
+                    className="w-14 px-2 py-0.5 bg-surface-900 border border-surface-600 rounded text-xs text-surface-200 text-center"
+                    min={1}
+                    max={50}
+                  />
+                </div>
+              )}
             </label>
             <label className="flex items-center gap-2 text-sm text-surface-300">
               <input
@@ -456,6 +473,7 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
         triggerCount: 3,
         freeSpinCount: 10,
         enableRetrigger: true,
+        retriggerSpinCount: 5,
         enableMultiplier: true,
         multiplierValue: 2,
       };

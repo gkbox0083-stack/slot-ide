@@ -1,4 +1,7 @@
-# P2-10 Scatter 價值計算優化
+# P2-11 Scatter 價值計算優化
+
+> [!NOTE]
+> 此議題暫時擱置，待 P2-10 Free Spin 控制整合完成後再處理。
 
 ## 問題背景
 
@@ -115,5 +118,5 @@ const freeSpinValue = freeSpinConfig.baseSpinCount * avgFGMultiplier;
 ## 相關 Issue
 
 - P2-09 Free Spin 觸發修復（已完成）
+- P2-10 Free Spin 控制整合（進行中）
 - P1-06 Pool Builder NG/FG 分離
-

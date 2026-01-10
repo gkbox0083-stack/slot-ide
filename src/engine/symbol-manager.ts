@@ -142,6 +142,7 @@ export class SymbolManager {
           triggerCount: 3,
           freeSpinCount: 10,
           enableRetrigger: true,
+          retriggerSpinCount: 5,
           enableMultiplier: true,
           multiplierValue: 2
         },
@@ -433,6 +434,7 @@ export function createDefaultScatterSymbol(): SymbolDefinition {
       triggerCount: 3,
       freeSpinCount: 10,
       enableRetrigger: true,
+      retriggerSpinCount: 5,
       enableMultiplier: true,
       multiplierValue: 2,
     },

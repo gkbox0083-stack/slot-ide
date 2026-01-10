@@ -14,7 +14,6 @@ export function PoolPanel() {
     symbols,
     outcomeConfig,
     linesConfig,
-    freeSpinConfig,
     isPoolsBuilt,
     setIsPoolsBuilt,
   } = useGameConfigStore();
@@ -234,8 +233,8 @@ export function PoolPanel() {
           </div>
           <div className="flex justify-between text-surface-400">
             <span>Free Spin:</span>
-            <span className={freeSpinConfig.enabled ? 'text-green-400' : 'text-surface-500'}>
-              {freeSpinConfig.enabled ? '✅ 啟用' : '❌ 停用'}
+            <span className={symbols.some(s => s.type === 'scatter') ? 'text-green-400' : 'text-surface-500'}>
+              {symbols.some(s => s.type === 'scatter') ? '✅ 已設定 Scatter' : '❌ 無 Scatter'}
             </span>
           </div>
         </div>

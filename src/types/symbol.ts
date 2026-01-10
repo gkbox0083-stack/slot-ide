@@ -25,6 +25,7 @@ export interface ScatterConfig {
   triggerCount: number;        // 觸發所需數量（預設 3）
   freeSpinCount: number;       // 給予的 Free Spin 次數
   enableRetrigger: boolean;    // 是否支援 Retrigger
+  retriggerSpinCount: number;  // Retrigger 額外次數（預設 5）
   enableMultiplier: boolean;   // 是否啟用 Multiplier
   multiplierValue: number;     // Multiplier 倍率（預設 2）
 }

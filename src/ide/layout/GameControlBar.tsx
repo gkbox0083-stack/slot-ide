@@ -93,22 +93,33 @@ export function GameControlBar() {
                 setWin(winAmount);
             }
 
-            // === P2-09 Free Spin 觸發處理 ===
+            // === P2-09/P2-10 Free Spin 觸發處理 ===
+            // P2-10: 使用 scatterConfig 作為唯一真相來源
+
+            // 取得 Scatter 配置
+            const symbols = useGameConfigStore.getState().symbols;
+            const scatterSymbol = symbols.find(s => s.type === 'scatter');
+            const scatterConfig = scatterSymbol?.scatterConfig;
 
             // 1. 觸發 Free Spin（Base Game → Free Game）
-            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin) {
+            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin && scatterConfig) {
                 const scatterCount = packet.meta.scatterCount || 0;
-                const config = useGameConfigStore.getState().freeSpinConfig;
-                freeSpinState.triggerFreeSpin(scatterCount, config);
+                freeSpinState.triggerFreeSpin(scatterCount, {
+                    enabled: true,
+                    triggerCount: scatterConfig.triggerCount,
+                    baseSpinCount: scatterConfig.freeSpinCount,
+                    enableRetrigger: scatterConfig.enableRetrigger,
+                    retriggerSpinCount: scatterConfig.retriggerSpinCount ?? 5,
+                    enableMultiplier: scatterConfig.enableMultiplier,
+                    multiplierValue: scatterConfig.multiplierValue,
+                });
             }
 
             // 2. Free Spin 模式下的處理
-            if (isInFreeSpin) {
-                const config = useGameConfigStore.getState().freeSpinConfig;
-
+            if (isInFreeSpin && scatterConfig) {
                 // 2a. 處理 Retrigger（Free Game 中再次觸發）
-                if (packet.meta?.triggeredFreeSpin && config.enableRetrigger) {
-                    freeSpinState.retrigger(config.retriggerSpinCount);
+                if (packet.meta?.triggeredFreeSpin && scatterConfig.enableRetrigger) {
+                    freeSpinState.retrigger(scatterConfig.retriggerSpinCount ?? 5);
                 }
 
                 // 2b. 累積獎金
@@ -133,7 +144,7 @@ export function GameControlBar() {
                 }
             }
 
-            // === End P2-09 ===
+            // === End P2-09/P2-10 ===
 
             accumulateSpinResult(winAmount, isInFreeSpin);
 
