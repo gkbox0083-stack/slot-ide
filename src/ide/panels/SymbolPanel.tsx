@@ -159,8 +159,7 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
           <span role="text">3連:{symbol.payouts.match3}</span>
           <span role="text">4連:{symbol.payouts.match4}</span>
           <span role="text">5連:{symbol.payouts.match5}</span>
-          <span role="text" className="text-blue-400">NG:{symbol.ngWeight}</span>
-          <span role="text" className="text-purple-400">FG:{symbol.fgWeight}</span>
+          <span role="text" className="text-green-400">視覺權重:{symbol.appearanceWeight}</span>
         </div>
       </div>
     );
@@ -268,29 +267,28 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
         </div>
       </div>
 
-      {/* 權重設定 (NG/FG 雙欄) */}
+      {/* 視覺權重設定 */}
       <div className="mb-3">
-        <label className="text-xs text-surface-400 block mb-1">權重 (NG / FG)</label>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-blue-400">NG:</span>
-            <input
-              type="number"
-              value={editedSymbol.ngWeight}
-              onChange={(e) => setEditedSymbol({ ...editedSymbol, ngWeight: Number(e.target.value) })}
-              className="flex-1 px-2 py-1.5 bg-surface-900 border border-blue-700 rounded text-sm text-surface-200"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-purple-400">FG:</span>
-            <input
-              type="number"
-              value={editedSymbol.fgWeight}
-              onChange={(e) => setEditedSymbol({ ...editedSymbol, fgWeight: Number(e.target.value) })}
-              className="flex-1 px-2 py-1.5 bg-surface-900 border border-purple-700 rounded text-sm text-surface-200"
-            />
-          </div>
-        </div>
+        <label className="text-xs text-surface-400 block mb-1">
+          視覺權重
+          <span className="text-surface-500 ml-1">(僅影響滾動動畫，不影響中獎)</span>
+        </label>
+        <input
+          type="number"
+          min={1}
+          value={editedSymbol.appearanceWeight}
+          onChange={(e) => {
+            const weight = Math.max(1, Number(e.target.value));
+            // 同步到所有權重欄位保持一致
+            setEditedSymbol({
+              ...editedSymbol,
+              appearanceWeight: weight,
+              ngWeight: weight,
+              fgWeight: weight,
+            });
+          }}
+          className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+        />
       </div>
 
       {/* Wild 設定 */}

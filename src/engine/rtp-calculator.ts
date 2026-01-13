@@ -92,24 +92,18 @@ function binomialProbability(n: number, k: number, p: number): number {
 
 /**
  * 計算 Free Spin 觸發機率（理論值）
- * 基於符號權重及二項分布
+ * 基於均勻分布（符號權重不影響數學層）
  */
 export function calculateFSTriggerProbability(
   symbols: SymbolDefinition[],
   boardConfig: BoardConfig,
-  phase: 'ng' | 'fg' = 'ng',
+  _phase: 'ng' | 'fg' = 'ng',
 ): number {
   const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
   if (!triggerSymbol || !triggerSymbol.fsTriggerConfig) return 0;
 
-  const weight = phase === 'ng' ? triggerSymbol.ngWeight : triggerSymbol.fgWeight;
-  const totalWeight = symbols.reduce((sum, s) => {
-    return sum + (phase === 'ng' ? s.ngWeight : s.fgWeight);
-  }, 0);
-
-  if (totalWeight === 0) return 0;
-
-  const probPerCell = weight / totalWeight;
+  // 均勻分布：每個符號出現機率相同
+  const probPerCell = 1 / symbols.length;
   const totalCells = boardConfig.cols * boardConfig.rows;
   const triggerCount = triggerSymbol.fsTriggerConfig.triggerCount;
 

@@ -22,6 +22,7 @@ interface WinningLineDisplay {
 export interface SlotMachineProps {
   spinPacket?: SpinPacket;
   availableSymbols?: SymbolId[];  // 可用符號列表（用於 Reel 生成 Dummy）
+  symbolWeights?: Record<SymbolId, number>;  // 符號視覺權重映射（appearanceWeight）
   onSpinComplete?: () => void;
   onSkip?: () => void;
 }
@@ -53,7 +54,7 @@ function getHighlightedRowsForReel(
  * 整合 5 輪並接收 SpinPacket
  */
 export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
-  ({ spinPacket, availableSymbols = [], onSpinComplete, onSkip }, ref) => {
+  ({ spinPacket, availableSymbols = [], symbolWeights, onSpinComplete, onSkip }, ref) => {
     // 每輪的狀態
     const [reelStates, setReelStates] = useState<ReelState[]>([
       'idle',
@@ -484,6 +485,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
                 symbols={reelSymbols}
                 previousSymbols={prevReelsRef.current?.[reelIndex]}
                 availableSymbols={availableSymbols}
+                symbolWeights={symbolWeights}
                 assets={assets}
                 animation={visual.animation}
                 symbolSize={symbolSize}

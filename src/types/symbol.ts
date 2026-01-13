@@ -51,9 +51,12 @@ export interface SymbolDefinition {
     match5: number;  // 5 連線分數
   };
   // 雙層機率模型
-  appearanceWeight: number;    // 視覺層：滾動動畫用
-  ngWeight: number;            // 數學層：NG Pool 生成用
-  fgWeight: number;            // 數學層：FG Pool 生成用
+  /** 視覺層權重：影響滾動動畫中符號出現頻率，不影響 RTP */
+  appearanceWeight: number;
+  /** @deprecated 不影響 Pool 生成，僅供參考/向下相容 */
+  ngWeight: number;
+  /** @deprecated 不影響 Pool 生成，僅供參考/向下相容 */
+  fgWeight: number;
   // 特殊符號設定
   wildConfig?: WildConfig;     // 僅 wild 類型有效
   scatterConfig?: ScatterConfig; // 僅 scatter 類型有效 (已棄用, 建議改用 fsTriggerConfig)

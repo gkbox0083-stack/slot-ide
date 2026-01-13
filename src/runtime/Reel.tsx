@@ -10,6 +10,7 @@ export interface ReelProps {
   symbols: SymbolId[];              // 最終要顯示的符號（3 或 4 個）
   previousSymbols?: SymbolId[];     // 上次的結果符號（用於動畫起點）
   availableSymbols?: SymbolId[];    // 用戶設定的符號列表（用於生成 Dummy）
+  symbolWeights?: Record<SymbolId, number>;  // 符號視覺權重映射（appearanceWeight）
   assets?: AssetsPatch;             // 素材覆蓋
   animation: {
     spinSpeed: number;              // 滾輪轉速
@@ -32,15 +33,43 @@ const DEFAULT_SYMBOL_IDS: SymbolId[] = ['H1', 'H2', 'H3', 'L1', 'L2', 'L3', 'L4'
 
 /**
  * 生成假符號列表（用於 spinning 階段）
+ * 使用 appearanceWeight 加權抽取
  * @param count 生成數量
  * @param availableSymbols 可用符號列表
+ * @param symbolWeights 符號權重映射（可選）
  */
-function generateDummySymbols(count: number, availableSymbols: SymbolId[]): SymbolId[] {
+function generateDummySymbols(
+  count: number,
+  availableSymbols: SymbolId[],
+  symbolWeights?: Record<SymbolId, number>
+): SymbolId[] {
   const result: SymbolId[] = [];
   const symbols = availableSymbols.length > 0 ? availableSymbols : DEFAULT_SYMBOL_IDS;
-  for (let i = 0; i < count; i++) {
-    const randomIndex = Math.floor(Math.random() * symbols.length);
-    result.push(symbols[randomIndex]);
+
+  // 如果有權重映射，使用加權抽取
+  if (symbolWeights && Object.keys(symbolWeights).length > 0) {
+    // 計算總權重
+    const totalWeight = symbols.reduce((sum, id) => sum + (symbolWeights[id] || 1), 0);
+
+    for (let i = 0; i < count; i++) {
+      let random = Math.random() * totalWeight;
+      let selected: SymbolId = symbols[0];
+
+      for (const id of symbols) {
+        random -= (symbolWeights[id] || 1);
+        if (random <= 0) {
+          selected = id;
+          break;
+        }
+      }
+      result.push(selected);
+    }
+  } else {
+    // 沒有權重，使用均勻分布
+    for (let i = 0; i < count; i++) {
+      const randomIndex = Math.floor(Math.random() * symbols.length);
+      result.push(symbols[randomIndex]);
+    }
   }
   return result;
 }
@@ -59,6 +88,7 @@ export function Reel({
   symbols,
   previousSymbols,
   availableSymbols = [],
+  symbolWeights,
   assets,
   animation,
   symbolSize = 100,
@@ -112,8 +142,8 @@ export function Reel({
     // 上次結果（作為動畫起點），如果沒有則使用當前符號
     const prevFinal = previousSymbols || symbols;
 
-    // 生成 Dummy 符號
-    const dummySymbols = generateDummySymbols(DUMMY_COUNT, availableSymbols);
+    // 生成 Dummy 符號（使用視覺權重）
+    const dummySymbols = generateDummySymbols(DUMMY_COUNT, availableSymbols, symbolWeights);
 
     // 當前結果（動畫終點）
     const newFinal = symbols;
@@ -135,7 +165,7 @@ export function Reel({
     };
 
     unifiedStripRef.current = strip;
-  }, [symbols, previousSymbols, availableSymbols]);
+  }, [symbols, previousSymbols, availableSymbols, symbolWeights]);
 
   /**
    * 開始滾動

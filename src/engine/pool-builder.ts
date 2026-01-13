@@ -143,15 +143,19 @@ export class PoolBuilder {
 
   /**
    * 生成隨機盤面（支援 5x3 和 5x4）
+   * 使用均勻分布，符號權重不影響數學層
    */
   private generateRandomBoard(): Board {
     const { cols, rows } = this.boardConfig;
+    const symbols = this.symbolManager.getAll();
     const reels: SymbolId[][] = [];
 
     for (let col = 0; col < cols; col++) {
       const reel: SymbolId[] = [];
       for (let row = 0; row < rows; row++) {
-        reel.push(this.symbolManager.drawSymbol());
+        // 均勻分布抽取，不使用權重
+        const randomIndex = Math.floor(Math.random() * symbols.length);
+        reel.push(symbols[randomIndex].id);
       }
       reels.push(reel);
     }

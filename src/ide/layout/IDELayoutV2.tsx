@@ -47,6 +47,15 @@ export function IDELayoutV2() {
   // 提取符號 ID 列表（用於 Reel 生成 Dummy）
   const availableSymbolIds = useMemo(() => symbols.map(s => s.id), [symbols]);
 
+  // 提取符號視覺權重映射（appearanceWeight）
+  const symbolWeights = useMemo(() => {
+    const weights: Record<string, number> = {};
+    for (const s of symbols) {
+      weights[s.id] = s.appearanceWeight;
+    }
+    return weights;
+  }, [symbols]);
+
   // 同步 visualConfig 和 assets 到 currentSpinPacket
   const displaySpinPacket = useMemo<SpinPacket | undefined>(() => {
     if (!currentSpinPacket) {
@@ -103,6 +112,7 @@ export function IDELayoutV2() {
               ref={slotMachineRef}
               spinPacket={displaySpinPacket}
               availableSymbols={availableSymbolIds}
+              symbolWeights={symbolWeights}
               onSpinComplete={() => {
                 console.log('Spin complete');
               }}

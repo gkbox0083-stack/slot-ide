@@ -250,18 +250,17 @@ export class SymbolManager {
   }
 
   /**
-   * 根據出現權重隨機抽一個符號（用於滾動動畫）
+   * 視覺層抽取（滾動動畫用）
+   * 使用 appearanceWeight 加權抽取
    */
-  drawSymbol(): SymbolId {
+  drawSymbolForAnimation(): SymbolId {
     const totalWeight = this.getTotalWeight();
     if (totalWeight === 0) {
       throw new Error('No symbols available or all weights are zero');
     }
 
-    // 生成 0 到總權重之間的隨機數
     let random = Math.random() * totalWeight;
 
-    // 遍歷所有 Symbol，累加權重直到超過隨機數
     for (const symbol of this.symbols) {
       random -= symbol.appearanceWeight;
       if (random <= 0) {
@@ -269,8 +268,27 @@ export class SymbolManager {
       }
     }
 
-    // 理論上不會執行到這裡，但為了型別安全返回最後一個
     return this.symbols[this.symbols.length - 1].id;
+  }
+
+  /**
+   * 數學層抽取（Pool 生成用）
+   * 均勻分布，不使用權重
+   */
+  drawSymbolForPool(): SymbolId {
+    if (this.symbols.length === 0) {
+      throw new Error('No symbols available');
+    }
+    const randomIndex = Math.floor(Math.random() * this.symbols.length);
+    return this.symbols[randomIndex].id;
+  }
+
+  /**
+   * @deprecated 請使用 drawSymbolForAnimation() 或 drawSymbolForPool()
+   * 根據出現權重隨機抽一個符號（用於滾動動畫）
+   */
+  drawSymbol(): SymbolId {
+    return this.drawSymbolForAnimation();
   }
 
   /**
