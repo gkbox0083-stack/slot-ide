@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useGameConfigStore, defaultOutcomeConfig } from '../../store/useGameConfigStore.js';
 import type { Outcome, GamePhase } from '../../types/outcome.js';
+import {
+  estimateScoreDistribution,
+  calculateOutcomeCoverage,
+  type ScoreDistribution,
+  type OutcomeCoverage,
+} from '../../engine/score-distribution.js';
 
 /**
  * OutcomePanel Outcome 設定面板（V2 擴展版）
@@ -29,8 +35,31 @@ export function OutcomePanel() {
       setOutcomeConfig(resetConfig);
       setEditingId(null);
       setShowAddForm(false);
+      setScoreDistribution(null); // P2-12: Reset coverage data
     }
   };
+
+  // P2-12: Score distribution for coverage warnings
+  const { symbols, linesConfig, boardConfig } = useGameConfigStore();
+  const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
+  const [isCalculatingCoverage, setIsCalculatingCoverage] = useState(false);
+
+  const handleCalculateCoverage = useCallback(() => {
+    setIsCalculatingCoverage(true);
+    setTimeout(() => {
+      const distribution = estimateScoreDistribution(symbols, linesConfig, boardConfig, 1000);
+      setScoreDistribution(distribution);
+      setIsCalculatingCoverage(false);
+    }, 10);
+  }, [symbols, linesConfig, boardConfig]);
+
+  // Calculate coverage for current outcomes
+  const coverageMap = useMemo(() => {
+    if (!scoreDistribution) return new Map<string, OutcomeCoverage>();
+    const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
+    const coverage = calculateOutcomeCoverage(scoreDistribution, allOutcomes);
+    return new Map(coverage.map(c => [c.outcomeId, c]));
+  }, [scoreDistribution, outcomeConfig]);
 
   return (
     <div className="space-y-4">
@@ -41,8 +70,8 @@ export function OutcomePanel() {
           <button
             onClick={() => setActivePhase('ng')}
             className={`px-4 py-2 text-sm font-semibold transition-colors ${activePhase === 'ng'
-                ? 'bg-blue-600 text-white'
-                : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
+              ? 'bg-blue-600 text-white'
+              : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
               }`}
           >
             NG
@@ -50,8 +79,8 @@ export function OutcomePanel() {
           <button
             onClick={() => setActivePhase('fg')}
             className={`px-4 py-2 text-sm font-semibold transition-colors ${activePhase === 'fg'
-                ? 'bg-purple-600 text-white'
-                : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
+              ? 'bg-purple-600 text-white'
+              : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
               }`}
           >
             FG
@@ -63,6 +92,32 @@ export function OutcomePanel() {
         >
           <span>↺</span> 全部重置
         </button>
+      </div>
+
+      {/* P2-12: 分數覆蓋預警 */}
+      <div className="p-3 bg-surface-900/50 rounded-lg">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs text-surface-400">分數覆蓋狀態</span>
+          <button
+            onClick={handleCalculateCoverage}
+            disabled={isCalculatingCoverage}
+            className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-500 disabled:opacity-50"
+          >
+            {isCalculatingCoverage ? '計算中...' : '更新覆蓋率'}
+          </button>
+        </div>
+        {scoreDistribution ? (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-surface-500">分數範圍:</span>
+            <span className="font-mono">{scoreDistribution.min}x ~ {scoreDistribution.max}x</span>
+            <span className="text-surface-500">| 平均:</span>
+            <span className="font-mono">{scoreDistribution.avg.toFixed(1)}x</span>
+          </div>
+        ) : (
+          <p className="text-xs text-surface-500">
+            點擊「更新覆蓋率」查看各 Outcome 的分數覆蓋狀態
+          </p>
+        )}
       </div>
 
       {/* 總計資訊 */}
@@ -93,6 +148,7 @@ export function OutcomePanel() {
               }
             }}
             canDelete={outcomes.length > 1}
+            coverage={coverageMap.get(outcome.id)}
           />
         ))}
       </div>
@@ -111,8 +167,8 @@ export function OutcomePanel() {
         <button
           onClick={() => setShowAddForm(true)}
           className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${activePhase === 'ng'
-              ? 'bg-blue-600 text-white hover:bg-blue-500'
-              : 'bg-purple-600 text-white hover:bg-purple-500'
+            ? 'bg-blue-600 text-white hover:bg-blue-500'
+            : 'bg-purple-600 text-white hover:bg-purple-500'
             }`}
         >
           + 新增 {activePhase === 'ng' ? 'NG' : 'FG'} Outcome
@@ -137,6 +193,7 @@ interface OutcomeItemProps {
   onCancel: () => void;
   onDelete: () => void;
   canDelete: boolean;
+  coverage?: OutcomeCoverage; // P2-12: Optional coverage info
 }
 
 function OutcomeItem({
@@ -147,7 +204,8 @@ function OutcomeItem({
   onSave,
   onCancel,
   onDelete,
-  canDelete
+  canDelete,
+  coverage
 }: OutcomeItemProps) {
   const [edited, setEdited] = useState(outcome);
   const isValid = edited.multiplierRange.min <= edited.multiplierRange.max;
@@ -180,6 +238,24 @@ function OutcomeItem({
           <span>倍率: {outcome.multiplierRange.min}x - {outcome.multiplierRange.max}x</span>
           <span>權重: {outcome.weight}</span>
           <span className="text-green-400">機率: {probability.toFixed(1)}%</span>
+          {/* P2-12: Coverage badge */}
+          {coverage && (
+            <span
+              className={`px-1.5 py-0.5 rounded text-xs font-medium ${coverage.status === 'ok'
+                  ? 'bg-green-900/50 text-green-400'
+                  : coverage.status === 'low'
+                    ? 'bg-yellow-900/50 text-yellow-400'
+                    : 'bg-red-900/50 text-red-400'
+                }`}
+              title={`覆蓋率: ${coverage.percentage.toFixed(1)}%`}
+            >
+              {coverage.status === 'ok'
+                ? '✅ 可建池'
+                : coverage.status === 'low'
+                  ? '⚠️ 低覆蓋'
+                  : '❌ 無盤面'}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -279,8 +355,8 @@ function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
 
   return (
     <div className={`p-4 rounded-lg border ${phase === 'ng'
-        ? 'bg-blue-900/20 border-blue-500/50'
-        : 'bg-purple-900/20 border-purple-500/50'
+      ? 'bg-blue-900/20 border-blue-500/50'
+      : 'bg-purple-900/20 border-purple-500/50'
       }`}>
       <h5 className={`text-sm font-semibold mb-3 ${phase === 'ng' ? 'text-blue-400' : 'text-purple-400'
         }`}>
@@ -340,8 +416,8 @@ function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
           onClick={handleAdd}
           disabled={!isValid || !newOutcome.name}
           className={`flex-1 py-2 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'ng'
-              ? 'bg-blue-600 hover:bg-blue-500'
-              : 'bg-purple-600 hover:bg-purple-500'
+            ? 'bg-blue-600 hover:bg-blue-500'
+            : 'bg-purple-600 hover:bg-purple-500'
             }`}
         >
           新增

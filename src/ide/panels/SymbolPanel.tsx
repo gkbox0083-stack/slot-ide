@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGameConfigStore, defaultSymbols } from '../../store/useGameConfigStore.js';
 import type {
   SymbolDefinition,
   SymbolType,
   SymbolCategory,
 } from '../../types/symbol.js';
+import {
+  estimateScoreDistribution,
+  type ScoreDistribution,
+} from '../../engine/score-distribution.js';
 
 /**
  * SymbolPanel Symbol 設定面板（V2 擴展版）
@@ -101,6 +105,9 @@ export function SymbolPanel() {
           + 新增符號
         </button>
       )}
+
+      {/* P2-12: 分數分布預覽 */}
+      <ScoreDistributionPreview />
 
       {/* 權重分佈預覽 */}
       <WeightDistribution symbols={symbols} />
@@ -551,6 +558,90 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
           取消
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * P2-12: 分數分布預覽
+ * 使用蒙地卡羅抽樣估算符號配置下的分數分布
+ */
+function ScoreDistributionPreview() {
+  const { symbols, linesConfig, boardConfig } = useGameConfigStore();
+  const [distribution, setDistribution] = useState<ScoreDistribution | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  const handleCalculate = useCallback(() => {
+    setIsCalculating(true);
+    // 使用 setTimeout 讓 UI 有機會更新
+    setTimeout(() => {
+      const result = estimateScoreDistribution(
+        symbols,
+        linesConfig,
+        boardConfig,
+        1000 // 抽樣次數
+      );
+      setDistribution(result);
+      setIsCalculating(false);
+    }, 10);
+  }, [symbols, linesConfig, boardConfig]);
+
+  return (
+    <div className="bg-surface-900/50 rounded-lg p-3" role="region" aria-label="分數分布預覽">
+      <div className="flex justify-between items-center mb-2">
+        <h5 className="text-xs font-semibold text-surface-400">📊 分數分布預覽</h5>
+        <button
+          onClick={handleCalculate}
+          disabled={isCalculating}
+          className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-500 disabled:opacity-50 disabled:cursor-wait"
+        >
+          {isCalculating ? '計算中...' : '更新'}
+        </button>
+      </div>
+
+      {distribution ? (
+        <div className="space-y-2">
+          {/* 統計摘要 */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-surface-800 rounded p-2">
+              <span className="text-surface-500">平均分數</span>
+              <div className="text-lg font-mono text-primary-400">
+                {distribution.avg.toFixed(1)}x
+                <span className="text-xs text-surface-500 ml-1">±{distribution.stdDev.toFixed(1)}</span>
+              </div>
+            </div>
+            <div className="bg-surface-800 rounded p-2">
+              <span className="text-surface-500">分數範圍</span>
+              <div className="text-lg font-mono text-surface-200">
+                {distribution.min}x ~ {distribution.max}x
+              </div>
+            </div>
+          </div>
+
+          {/* 簡易直方圖 */}
+          <div className="space-y-1">
+            <span className="text-xs text-surface-500">分布（抽樣 {distribution.sampleSize} 次）</span>
+            <div className="flex gap-px h-8 items-end">
+              {distribution.histogram.map((bucket, i) => (
+                <div
+                  key={i}
+                  className="flex-1 bg-primary-500/80 rounded-t"
+                  style={{ height: `${Math.max(2, bucket.percentage * 2)}px` }}
+                  title={`${bucket.rangeStart}~${bucket.rangeEnd}x: ${bucket.percentage.toFixed(1)}%`}
+                />
+              ))}
+            </div>
+            <div className="flex justify-between text-[10px] text-surface-500">
+              <span>{distribution.min}x</span>
+              <span>{distribution.max}x</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-surface-500 text-center py-4">
+          點擊「更新」按鈕計算分數分布
+        </p>
+      )}
     </div>
   );
 }

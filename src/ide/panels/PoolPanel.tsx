@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import { poolBuilder, symbolManager, outcomeManager, linesManager } from '../../engine/index.js';
 import type { BoardRows } from '../../types/board.js';
+import {
+  calculateActualPoolRTP,
+  type ActualPoolRTP,
+} from '../../engine/score-distribution.js';
 
 /**
  * Pool 管理面板
@@ -24,12 +28,13 @@ export function PoolPanel() {
   const [buildError, setBuildError] = useState<string | null>(null);
   const [poolStatus, setPoolStatus] = useState<{ outcomeId: string; outcomeName: string; generated: number; cap: number; isFull: boolean }[]>([]);
   const [poolCap, setPoolCap] = useState(100);
+  const [actualRTP, setActualRTP] = useState<ActualPoolRTP | null>(null);
 
-  // 同步 store 的 isPoolsBuilt 與本地狀態
   useEffect(() => {
     if (!isPoolsBuilt) {
       setPoolStatus([]);
       setBuildError(null);
+      setActualRTP(null); // P2-12: Clear RTP on pool clear
     }
   }, [isPoolsBuilt]);
 
@@ -84,7 +89,21 @@ export function PoolPanel() {
 
       if (result.success) {
         setPoolStatus(result.pools);
-        setIsPoolsBuilt(true); // 更新 store
+        setIsPoolsBuilt(true);
+
+        // P2-12: 計算實際 RTP
+        const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
+        const rtpResult = calculateActualPoolRTP(
+          result.pools,
+          allOutcomes,
+          (outcomeId) => {
+            const pool = poolBuilder.getPool(outcomeId);
+            return pool ? pool.boards : [];
+          },
+          symbols,
+          linesConfig
+        );
+        setActualRTP(rtpResult);
       } else {
         setBuildError(result.errors.join('; ') || '建立盤池失敗');
         setPoolStatus(result.pools);
@@ -258,6 +277,72 @@ export function PoolPanel() {
                 <span className="text-sm text-surface-300">{pool.outcomeName}</span>
                 <span className={`text-sm font-semibold ${pool.isFull ? 'text-green-400' : 'text-yellow-400'}`}>
                   {pool.generated}/{pool.cap} {pool.isFull ? '✅' : '⚠️'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* P2-12 Phase 2: RTP 比較 */}
+      {actualRTP && isPoolsBuilt && (
+        <div className="p-4 bg-surface-800 rounded-lg">
+          <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
+            📈 RTP 分析
+          </h4>
+
+          {/* RTP 總覽 */}
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="bg-surface-900 rounded-lg p-3 text-center">
+              <div className="text-xs text-surface-500 mb-1">NG RTP</div>
+              <div className="text-lg font-mono text-blue-400">
+                {actualRTP.ngRTP.toFixed(2)}%
+              </div>
+            </div>
+            <div className="bg-surface-900 rounded-lg p-3 text-center">
+              <div className="text-xs text-surface-500 mb-1">FG 貢獻</div>
+              <div className="text-lg font-mono text-purple-400">
+                {actualRTP.fgRTPContribution.toFixed(2)}%
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-primary-900/50 to-surface-900 rounded-lg p-3 text-center border border-primary-700">
+              <div className="text-xs text-surface-500 mb-1">總 RTP</div>
+              <div className="text-xl font-mono font-bold text-primary-400">
+                {actualRTP.totalRTP.toFixed(2)}%
+              </div>
+            </div>
+          </div>
+
+          {/* Outcome 詳細 */}
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            <div className="grid grid-cols-5 gap-1 text-xs text-surface-500 px-2 mb-1">
+              <span>Outcome</span>
+              <span className="text-right">機率</span>
+              <span className="text-right">平均分</span>
+              <span className="text-right">貢獻</span>
+              <span></span>
+            </div>
+            {actualRTP.outcomeDetails.map(detail => (
+              <div key={detail.outcomeId}
+                className={`grid grid-cols-5 gap-1 text-xs px-2 py-1 rounded ${detail.phase === 'ng' ? 'bg-blue-900/20' : 'bg-purple-900/20'
+                  }`}
+              >
+                <span className="text-surface-300 truncate" title={detail.outcomeName}>
+                  {detail.outcomeName}
+                </span>
+                <span className="text-right text-surface-400">
+                  {detail.probability.toFixed(1)}%
+                </span>
+                <span className="text-right font-mono text-surface-300">
+                  {detail.avgScore.toFixed(1)}x
+                </span>
+                <span className={`text-right font-mono ${detail.contribution > 0 ? 'text-green-400' : 'text-surface-500'
+                  }`}>
+                  {detail.contribution.toFixed(2)}%
+                </span>
+                <span className={`text-center ${detail.phase === 'ng' ? 'text-blue-400' : 'text-purple-400'
+                  }`}>
+                  {detail.phase.toUpperCase()}
                 </span>
               </div>
             ))}
