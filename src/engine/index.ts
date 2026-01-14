@@ -1,5 +1,5 @@
 /**
- * Engine 模組統一匯出
+ * Engine 模組統一匯出（V3 簡化版）
  */
 
 export { OutcomeManager } from './outcome-manager.js';
@@ -10,7 +10,7 @@ export type { Pool, PoolStatus, BuildResult } from './pool-builder.js';
 export { Settlement, countScatters } from './settlement.js';
 export { SpinExecutor } from './spin-executor.js';
 
-// 匯出 Symbol 系統輔助函式（V2）
+// 匯出 Symbol 系統輔助函式
 export {
   isWildSymbol,
   isScatterSymbol,
@@ -24,12 +24,10 @@ export {
   createDefaultScatterSymbol,
 } from './symbol-manager.js';
 
-// 匯出 RTP Calculator（V2）
+// 匯出 RTP Calculator（V3 簡化版）
 export {
-  calculateTheoreticalNGRTP,
-  calculateTheoreticalFGRTP,
-  calculateFSTriggerProbability,
-  calculateExpectedFreeSpins,
+  calculateTheoreticalLineRTP,
+  calculateScatterRTPContribution,
   calculateTheoreticalRTPBreakdown,
   calculateActualRTPFromStats,
   calculateAdditionalStats,
@@ -51,4 +49,3 @@ export const linesManager = new LinesManager();
 export const poolBuilder = new PoolBuilder(outcomeManager, symbolManager, linesManager);
 export const settlement = new Settlement(symbolManager, linesManager);
 export const spinExecutor = new SpinExecutor(outcomeManager, poolBuilder, settlement);
-

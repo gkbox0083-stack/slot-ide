@@ -1,47 +1,43 @@
 import type { Outcome } from '../types/outcome.js';
 
 /**
- * OutcomeManager
+ * OutcomeManager（V3 簡化版）
  * 管理結果類型（倍率區間 + 權重）
+ * 移除 NG/FG 分離邏輯
  */
 export class OutcomeManager {
   private outcomes: Outcome[] = [];
 
   constructor() {
-    // 載入預設 Outcome
     this.loadDefaults();
   }
 
   /**
-   * 載入預設 Outcome（V2 支援 phase）
+   * 載入預設 Outcome（V3 簡化版，移除 phase）
    */
   private loadDefaults(): void {
     this.outcomes = [
       {
         id: this.generateId(),
         name: '大獎',
-        phase: 'ng',
         multiplierRange: { min: 100, max: 500 },
         weight: 10,
       },
       {
         id: this.generateId(),
         name: '中獎',
-        phase: 'ng',
         multiplierRange: { min: 10, max: 50 },
         weight: 50,
       },
       {
         id: this.generateId(),
         name: '小獎',
-        phase: 'ng',
         multiplierRange: { min: 2, max: 5 },
         weight: 200,
       },
       {
         id: this.generateId(),
         name: '無獎',
-        phase: 'ng',
         multiplierRange: { min: 0, max: 0 },
         weight: 740,
       },
@@ -121,7 +117,7 @@ export class OutcomeManager {
   }
 
   /**
-   * 根據權重隨機抽取一個 Outcome
+   * 根據權重隨機抽取一個 Outcome（V3 簡化版）
    */
   drawOutcome(): Outcome {
     const totalWeight = this.getTotalWeight();
@@ -129,10 +125,8 @@ export class OutcomeManager {
       throw new Error('No outcomes available or all weights are zero');
     }
 
-    // 生成 0 到總權重之間的隨機數
     let random = Math.random() * totalWeight;
 
-    // 遍歷所有 Outcome，累加權重直到超過隨機數
     for (const outcome of this.outcomes) {
       random -= outcome.weight;
       if (random <= 0) {
@@ -140,39 +134,7 @@ export class OutcomeManager {
       }
     }
 
-    // 理論上不會執行到這裡，但為了型別安全返回最後一個
     return this.outcomes[this.outcomes.length - 1];
-  }
-
-  /**
-   * 計算指定階段的總權重
-   */
-  private getTotalWeightByPhase(phase: 'ng' | 'fg'): number {
-    return this.outcomes
-      .filter(o => o.phase === phase)
-      .reduce((sum, outcome) => sum + outcome.weight, 0);
-  }
-
-  /**
-   * 根據遊戲階段權重隨機抽取一個 Outcome
-   */
-  drawOutcomeByPhase(phase: 'ng' | 'fg'): Outcome {
-    const totalWeight = this.getTotalWeightByPhase(phase);
-    if (totalWeight === 0) {
-      throw new Error(`No outcomes available for phase "${phase}" or all weights are zero`);
-    }
-
-    let random = Math.random() * totalWeight;
-    const phaseOutcomes = this.outcomes.filter(o => o.phase === phase);
-
-    for (const outcome of phaseOutcomes) {
-      random -= outcome.weight;
-      if (random <= 0) {
-        return outcome;
-      }
-    }
-
-    return phaseOutcomes[phaseOutcomes.length - 1];
   }
 
   /**

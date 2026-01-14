@@ -4,12 +4,11 @@ import type { SettlementMeta, WinningLine } from '../types/spin-packet.js';
 import type { SymbolDefinition } from '../types/symbol.js';
 import type { SymbolManager } from './symbol-manager.js';
 import type { LinesManager } from './lines-manager.js';
-import type { FreeSpinMode } from '../types/free-spin.js';
 import { isWildSymbol, isScatterSymbol, canWildReplace } from './symbol-manager.js';
 
 /**
- * Settlement
- * 結算盤面，計算所有中獎線（V2 支援 Wild）
+ * Settlement（V3 簡化版）
+ * 結算盤面，計算所有中獎線 + Scatter 直接賦值
  */
 export class Settlement {
   constructor(
@@ -18,42 +17,38 @@ export class Settlement {
   ) { }
 
   /**
-   * 結算盤面，返回 SettlementMeta（V2 擴展）
+   * 結算盤面，返回 SettlementMeta（V3 簡化版）
    * @param board 盤面
    * @param outcomeId Outcome ID
-   * @param phase 遊戲階段
-   * @param multiplier Multiplier 倍率（Free Spin 時使用）
    * @param baseBet 投注金額（用於計算最終獲勝金額）
    */
   settle(
     board: Board,
     outcomeId: string,
-    phase: FreeSpinMode = 'base',
-    multiplier: number = 1,
     baseBet: number = 1
   ): SettlementMeta {
     const patterns = this.linesManager.getAllPatterns();
     const winningLines: WinningLine[] = [];
     let bestLine: WinningLine | undefined;
     let maxScore = 0;
-    let totalScore = 0;
+    let lineScore = 0;
     const symbols = this.symbolManager.getAll();
 
-    // 遍歷所有線
+    // 1. 遍歷所有線計算連線得分
     for (let lineIndex = 0; lineIndex < patterns.length; lineIndex++) {
       const pattern = patterns[lineIndex];
       if (!pattern) continue;
 
-      // 取得線上 5 個符號
+      // 取得線上符號
       const lineSymbolIds = this.getLineSymbols(board, lineIndex);
 
       // 計算從左到右連續相同符號數（含 Wild 替代）
       const match = this.countConsecutiveWithWild(lineSymbolIds, symbols, pattern.positions);
 
       if (match) {
-        // 取得這條線的分數（倍率 × baseBet × multiplier）
+        // 取得這條線的分數（倍率 × baseBet）
         const basePayout = this.symbolManager.getPayout(match.symbol, match.count);
-        const payout = basePayout * baseBet * multiplier;
+        const payout = basePayout * baseBet;
 
         // 建立 WinningLine
         const winningLine: WinningLine = {
@@ -66,13 +61,10 @@ export class Settlement {
           wildPositions: match.wildPositions.length > 0 ? match.wildPositions : undefined,
         };
 
-        // 加入中獎線列表
         winningLines.push(winningLine);
+        lineScore += payout;
 
-        // 累加總分
-        totalScore += payout;
-
-        // 更新 best-line（分數相同時保留第一個）
+        // 更新 best-line
         if (payout > maxScore) {
           maxScore = payout;
           bestLine = winningLine;
@@ -80,27 +72,33 @@ export class Settlement {
       }
     }
 
-    // P2-10: 通用 Free Spin 觸發檢查
-    const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
-    let triggeredFreeSpin = false;
-    let scatterCount = 0; // 名稱保留給 SpinPacket 介面使用
+    // 2. 計算 Scatter 直接賦值得分（V3 新增）
+    const scatterSymbol = symbols.find(s => s.scatterPayoutConfig);
+    let scatterPayout = 0;
+    let scatterCount = 0;
 
-    if (triggerSymbol && triggerSymbol.fsTriggerConfig) {
-      scatterCount = this.countSymbol(board, triggerSymbol.id);
-      if (scatterCount >= triggerSymbol.fsTriggerConfig.triggerCount) {
-        triggeredFreeSpin = true;
+    if (scatterSymbol?.scatterPayoutConfig) {
+      scatterCount = this.countSymbol(board, scatterSymbol.id);
+      const config = scatterSymbol.scatterPayoutConfig;
+
+      if (scatterCount >= config.minCount) {
+        const multiplier = config.payoutByCount[scatterCount] ?? 0;
+        scatterPayout = multiplier * baseBet;
       }
     }
 
+    const totalWin = lineScore + scatterPayout;
+
     return {
       outcomeId,
-      phase,
-      win: totalScore,
-      multiplier,
+      phase: 'base', // V3: 固定為 base，不再有 free 模式
+      win: totalWin,
+      multiplier: 1, // V3: 固定為 1，移除 FS multiplier
       winningLines,
       bestLine,
       scatterCount,
-      triggeredFreeSpin,
+      scatterPayout,  // V3 新增：Scatter 直接得分
+      triggeredFreeSpin: false, // V3: 永遠為 false，不再觸發 FS
     };
   }
 
@@ -121,8 +119,6 @@ export class Settlement {
 
   /**
    * 取得指定線的符號
-   * @param board 盤面
-   * @param lineIndex 線條索引
    */
   private getLineSymbols(board: Board, lineIndex: number): SymbolId[] {
     const pattern = this.linesManager.getPattern(lineIndex);
@@ -139,10 +135,7 @@ export class Settlement {
   }
 
   /**
-   * 計算連續相同符號（含 Wild 替代）V2
-   * @param symbolIds 符號 ID 陣列
-   * @param symbolDefs 符號定義列表
-   * @param positions 線路位置
+   * 計算連續相同符號（含 Wild 替代）
    */
   private countConsecutiveWithWild(
     symbolIds: SymbolId[],
@@ -168,7 +161,7 @@ export class Settlement {
       }
     }
 
-    // 如果全是 Wild/Scatter，不計算（Wild 不單獨成線）
+    // 如果全是 Wild/Scatter，不計算
     if (!targetId || !targetDef) {
       return null;
     }
@@ -186,14 +179,11 @@ export class Settlement {
       }
 
       if (currentId === targetId) {
-        // 相同符號
         count++;
       } else if (isWildSymbol(currentDef) && canWildReplace(currentDef, targetDef)) {
-        // Wild 替代
         count++;
         wildPositions.push(positions[i]);
       } else {
-        // 不匹配，停止
         break;
       }
     }

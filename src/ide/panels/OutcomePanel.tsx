@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useGameConfigStore, defaultOutcomeConfig } from '../../store/useGameConfigStore.js';
-import type { Outcome, GamePhase } from '../../types/outcome.js';
+import { useGameConfigStore, defaultOutcomes } from '../../store/useGameConfigStore.js';
+import type { Outcome } from '../../types/outcome.js';
 import {
   estimateScoreDistribution,
   calculateOutcomeCoverage,
@@ -9,19 +9,14 @@ import {
 } from '../../engine/score-distribution.js';
 
 /**
- * OutcomePanel Outcome 設定面板（V2 擴展版）
- * 支援 NG/FG 切換
+ * OutcomePanel Outcome 設定面板（V3 簡化版）
+ * 移除 NG/FG 切換、統一 Outcome 列表
  */
 export function OutcomePanel() {
-  const [activePhase, setActivePhase] = useState<GamePhase>('ng');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const { outcomeConfig, addOutcome, updateOutcome, removeOutcome, setOutcomeConfig } = useGameConfigStore();
-
-  const outcomes = activePhase === 'ng'
-    ? outcomeConfig.ngOutcomes
-    : outcomeConfig.fgOutcomes;
+  const { outcomes, addOutcome, updateOutcome, removeOutcome, setOutcomes } = useGameConfigStore();
 
   // 計算機率
   const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
@@ -30,16 +25,15 @@ export function OutcomePanel() {
   // Reset function
   const handleReset = () => {
     if (confirm('確定要重置所有 Outcome 設定嗎？此動作無法復原。')) {
-      // Create a deep copy to ensure new object references
-      const resetConfig = JSON.parse(JSON.stringify(defaultOutcomeConfig));
-      setOutcomeConfig(resetConfig);
+      const resetOutcomes = JSON.parse(JSON.stringify(defaultOutcomes));
+      setOutcomes(resetOutcomes);
       setEditingId(null);
       setShowAddForm(false);
-      setScoreDistribution(null); // P2-12: Reset coverage data
+      setScoreDistribution(null);
     }
   };
 
-  // P2-12: Score distribution for coverage warnings
+  // Score distribution for coverage warnings
   const { symbols, linesConfig, boardConfig } = useGameConfigStore();
   const [scoreDistribution, setScoreDistribution] = useState<ScoreDistribution | null>(null);
   const [isCalculatingCoverage, setIsCalculatingCoverage] = useState(false);
@@ -56,36 +50,15 @@ export function OutcomePanel() {
   // Calculate coverage for current outcomes
   const coverageMap = useMemo(() => {
     if (!scoreDistribution) return new Map<string, OutcomeCoverage>();
-    const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
-    const coverage = calculateOutcomeCoverage(scoreDistribution, allOutcomes);
+    const coverage = calculateOutcomeCoverage(scoreDistribution, outcomes);
     return new Map(coverage.map(c => [c.outcomeId, c]));
-  }, [scoreDistribution, outcomeConfig]);
+  }, [scoreDistribution, outcomes]);
 
   return (
     <div className="space-y-4">
       {/* Header with Reset */}
       <div className="flex justify-between items-center">
-        {/* NG/FG 切換器 */}
-        <div className="flex rounded-lg overflow-hidden border border-surface-700">
-          <button
-            onClick={() => setActivePhase('ng')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors ${activePhase === 'ng'
-              ? 'bg-blue-600 text-white'
-              : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
-              }`}
-          >
-            NG
-          </button>
-          <button
-            onClick={() => setActivePhase('fg')}
-            className={`px-4 py-2 text-sm font-semibold transition-colors ${activePhase === 'fg'
-              ? 'bg-purple-600 text-white'
-              : 'bg-surface-800 text-surface-400 hover:bg-surface-700'
-              }`}
-          >
-            FG
-          </button>
-        </div>
+        <h4 className="text-sm font-semibold text-surface-300">Outcomes 設定</h4>
         <button
           onClick={handleReset}
           className="text-xs text-surface-400 hover:text-white flex items-center gap-1 transition-colors"
@@ -94,7 +67,7 @@ export function OutcomePanel() {
         </button>
       </div>
 
-      {/* P2-12: 分數覆蓋預警 */}
+      {/* 分數覆蓋預警 */}
       <div className="p-3 bg-surface-900/50 rounded-lg">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs text-surface-400">分數覆蓋狀態</span>
@@ -110,7 +83,7 @@ export function OutcomePanel() {
           <div className="flex items-center gap-2 text-xs">
             <span className="text-surface-500">分數範圍:</span>
             <span className="font-mono">{scoreDistribution.min}x ~ {scoreDistribution.max}x</span>
-            <span className="text-surface-500">| 平均:</span>
+            <span className="text-surface-500">| 平均:</span>
             <span className="font-mono">{scoreDistribution.avg.toFixed(1)}x</span>
           </div>
         ) : (
@@ -156,7 +129,6 @@ export function OutcomePanel() {
       {/* 新增 Outcome */}
       {showAddForm ? (
         <AddOutcomeForm
-          phase={activePhase}
           onAdd={(newOutcome) => {
             addOutcome(newOutcome);
             setShowAddForm(false);
@@ -166,12 +138,9 @@ export function OutcomePanel() {
       ) : (
         <button
           onClick={() => setShowAddForm(true)}
-          className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${activePhase === 'ng'
-            ? 'bg-blue-600 text-white hover:bg-blue-500'
-            : 'bg-purple-600 text-white hover:bg-purple-500'
-            }`}
+          className="w-full py-2 rounded-lg text-sm font-semibold transition-colors bg-primary-600 text-white hover:bg-primary-500"
         >
-          + 新增 {activePhase === 'ng' ? 'NG' : 'FG'} Outcome
+          + 新增 Outcome
         </button>
       )}
 
@@ -193,7 +162,7 @@ interface OutcomeItemProps {
   onCancel: () => void;
   onDelete: () => void;
   canDelete: boolean;
-  coverage?: OutcomeCoverage; // P2-12: Optional coverage info
+  coverage?: OutcomeCoverage;
 }
 
 function OutcomeItem({
@@ -214,13 +183,7 @@ function OutcomeItem({
     return (
       <div className="p-3 bg-surface-800 rounded-lg">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-surface-200">{outcome.name}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded ${outcome.phase === 'ng' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'
-              }`}>
-              {outcome.phase.toUpperCase()}
-            </span>
-          </div>
+          <span className="font-semibold text-sm text-surface-200">{outcome.name}</span>
           <div className="flex gap-1">
             <button onClick={onEdit} className="px-2 py-1 text-xs bg-surface-700 text-surface-300 rounded hover:bg-surface-600">
               編輯
@@ -238,14 +201,13 @@ function OutcomeItem({
           <span>倍率: {outcome.multiplierRange.min}x - {outcome.multiplierRange.max}x</span>
           <span>權重: {outcome.weight}</span>
           <span className="text-green-400">機率: {probability.toFixed(1)}%</span>
-          {/* P2-12: Coverage badge */}
           {coverage && (
             <span
               className={`px-1.5 py-0.5 rounded text-xs font-medium ${coverage.status === 'ok'
-                  ? 'bg-green-900/50 text-green-400'
-                  : coverage.status === 'low'
-                    ? 'bg-yellow-900/50 text-yellow-400'
-                    : 'bg-red-900/50 text-red-400'
+                ? 'bg-green-900/50 text-green-400'
+                : coverage.status === 'low'
+                  ? 'bg-yellow-900/50 text-yellow-400'
+                  : 'bg-red-900/50 text-red-400'
                 }`}
               title={`覆蓋率: ${coverage.percentage.toFixed(1)}%`}
             >
@@ -334,12 +296,11 @@ function OutcomeItem({
  * 新增 Outcome 表單
  */
 interface AddOutcomeFormProps {
-  phase: GamePhase;
   onAdd: (outcome: Omit<Outcome, 'id'>) => void;
   onCancel: () => void;
 }
 
-function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
+function AddOutcomeForm({ onAdd, onCancel }: AddOutcomeFormProps) {
   const [newOutcome, setNewOutcome] = useState({
     name: '',
     multiplierRange: { min: 0, max: 0 },
@@ -350,18 +311,12 @@ function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
 
   const handleAdd = () => {
     if (!newOutcome.name || !isValid) return;
-    onAdd({ ...newOutcome, phase });
+    onAdd(newOutcome);
   };
 
   return (
-    <div className={`p-4 rounded-lg border ${phase === 'ng'
-      ? 'bg-blue-900/20 border-blue-500/50'
-      : 'bg-purple-900/20 border-purple-500/50'
-      }`}>
-      <h5 className={`text-sm font-semibold mb-3 ${phase === 'ng' ? 'text-blue-400' : 'text-purple-400'
-        }`}>
-        新增 {phase === 'ng' ? 'NG' : 'FG'} Outcome
-      </h5>
+    <div className="p-4 rounded-lg border bg-primary-900/20 border-primary-500/50">
+      <h5 className="text-sm font-semibold mb-3 text-primary-400">新增 Outcome</h5>
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="col-span-2">
           <label className="text-xs text-surface-400 block mb-1">名稱</label>
@@ -415,10 +370,7 @@ function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
         <button
           onClick={handleAdd}
           disabled={!isValid || !newOutcome.name}
-          className={`flex-1 py-2 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${phase === 'ng'
-            ? 'bg-blue-600 hover:bg-blue-500'
-            : 'bg-purple-600 hover:bg-purple-500'
-            }`}
+          className="flex-1 py-2 text-white rounded text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 hover:bg-primary-500"
         >
           新增
         </button>
@@ -439,24 +391,18 @@ function AddOutcomeForm({ phase, onAdd, onCancel }: AddOutcomeFormProps) {
 function ProbabilityDistribution({ outcomes }: { outcomes: Outcome[] }) {
   const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
 
-  // Calculate Theoretical RTP
   const theoreticalRTP = outcomes.reduce((sum, o) => {
     const probability = totalWeight > 0 ? o.weight / totalWeight : 0;
     const averageMultiplier = (o.multiplierRange.min + o.multiplierRange.max) / 2;
     return sum + (probability * averageMultiplier);
-  }, 0) * 100; // Convert to percentage if multiplier is 1x = 100% RTP roughly, but here multiplier is direct payout multiplier
-  // Usually RTP = HitFrequency * AverageWin.
-  // Here we have average multiplier contribution = Probability * AvgMultiplier.
-  // The sum of these is the Expected Value (average return) per spin unit bet.
-  // If base bet is 1, and multiplier is "times bet", then this sum IS the RTP ratio.
-  // Display as % (e.g., 0.95 -> 95.00%)
+  }, 0) * 100;
 
   return (
     <div className="bg-surface-900/50 rounded-lg p-3">
       <div className="flex justify-between items-center mb-2">
         <h5 className="text-xs font-semibold text-surface-400">機率分佈</h5>
         <span className="text-xs text-surface-300">
-          理論 RTP: <span className="text-yellow-400 font-mono">{theoreticalRTP.toFixed(2)}%</span> (估算值)
+          理論 Line RTP: <span className="text-yellow-400 font-mono">{theoreticalRTP.toFixed(2)}%</span>
         </span>
       </div>
       <div className="space-y-1.5 max-h-40 overflow-y-auto">
@@ -468,8 +414,7 @@ function ProbabilityDistribution({ outcomes }: { outcomes: Outcome[] }) {
               <span className="w-16 text-surface-300 truncate">{outcome.name}</span>
               <div className="flex-1 h-3 bg-surface-700 rounded overflow-hidden">
                 <div
-                  className={`h-full ${outcome.phase === 'ng' ? 'bg-blue-500' : 'bg-purple-500'
-                    }`}
+                  className="h-full bg-primary-500"
                   style={{ width: `${probability}%` }}
                 />
               </div>
@@ -483,4 +428,3 @@ function ProbabilityDistribution({ outcomes }: { outcomes: Outcome[] }) {
     </div>
   );
 }
-

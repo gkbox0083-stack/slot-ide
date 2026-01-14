@@ -4,7 +4,7 @@ import { useGameConfigStore } from '../../store/useGameConfigStore.js';
 import type { SimulationStats } from '../../engine/rtp-calculator.js';
 
 /**
- * 底部統計區（V2 三欄式佈局）
+ * 底部統計區（V3 簡化版）
  * 包含：Winnings 柱狀圖、Balance History 折線圖、Symbol Distribution 圓餅圖
  */
 export function StatisticsPanelV2() {
@@ -14,35 +14,29 @@ export function StatisticsPanelV2() {
   const handleExportCSV = () => {
     if (results.length === 0) return;
 
-    // 計算累計統計
+    // 計算累計統計（V3 簡化版）
     const total = results.reduce((acc, r) => ({
       totalSpins: acc.totalSpins + r.totalSpins,
-      ngSpins: acc.ngSpins + r.ngSpins,
-      fgSpins: acc.fgSpins + r.fgSpins,
       totalBet: acc.totalBet + r.totalBet,
       totalWin: acc.totalWin + r.totalWin,
-      ngWin: acc.ngWin + r.ngWin,
-      fgWin: acc.fgWin + r.fgWin,
-      fgTriggerCount: acc.fgTriggerCount + r.fgTriggerCount,
+      lineWin: acc.lineWin + r.lineWin,
+      scatterWin: acc.scatterWin + r.scatterWin,
       hitCount: acc.hitCount + r.hitCount,
       maxWin: Math.max(acc.maxWin, r.maxWin),
     }), {
-      totalSpins: 0, ngSpins: 0, fgSpins: 0,
-      totalBet: 0, totalWin: 0, ngWin: 0, fgWin: 0,
-      fgTriggerCount: 0, hitCount: 0, maxWin: 0,
+      totalSpins: 0,
+      totalBet: 0, totalWin: 0, lineWin: 0, scatterWin: 0,
+      hitCount: 0, maxWin: 0,
     });
 
     // CSV 內容
     const csvContent = [
       ['Metric', 'Value'],
       ['Total Spins', total.totalSpins],
-      ['NG Spins', total.ngSpins],
-      ['FG Spins', total.fgSpins],
       ['Total Bet', total.totalBet],
       ['Total Win', total.totalWin],
-      ['NG Win', total.ngWin],
-      ['FG Win', total.fgWin],
-      ['FG Trigger Count', total.fgTriggerCount],
+      ['Line Win', total.lineWin],
+      ['Scatter Win', total.scatterWin],
       ['Hit Count', total.hitCount],
       ['Max Win', total.maxWin],
       ['RTP', `${((total.totalWin / total.totalBet) * 100).toFixed(2)}%`],
@@ -102,7 +96,7 @@ export function StatisticsPanelV2() {
 }
 
 /**
- * Winnings 柱狀圖
+ * Winnings 柱狀圖（V3 簡化版）
  */
 function WinningsBarChart({ results }: { results: SimulationStats[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -116,7 +110,6 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 支援 HiDPI 螢幕
     const dpr = window.devicePixelRatio || 1;
     canvas.width = LOGICAL_WIDTH * dpr;
     canvas.height = LOGICAL_HEIGHT * dpr;
@@ -127,7 +120,6 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
     const width = LOGICAL_WIDTH;
     const height = LOGICAL_HEIGHT;
 
-    // 清除畫布
     ctx.clearRect(0, 0, width, height);
 
     if (results.length === 0) {
@@ -139,16 +131,16 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
       return;
     }
 
-    // 計算各類型獲勝分佈
+    // V3: 使用 lineWin 和 scatterWin
     const total = results.reduce((acc, r) => ({
-      ngWin: acc.ngWin + r.ngWin,
-      fgWin: acc.fgWin + r.fgWin,
+      lineWin: acc.lineWin + r.lineWin,
+      scatterWin: acc.scatterWin + r.scatterWin,
       totalBet: acc.totalBet + r.totalBet,
-    }), { ngWin: 0, fgWin: 0, totalBet: 0 });
+    }), { lineWin: 0, scatterWin: 0, totalBet: 0 });
 
     const data = [
-      { label: 'NG Win', value: total.ngWin, color: '#4CAF50' },
-      { label: 'FG Win', value: total.fgWin, color: '#9C27B0' },
+      { label: 'Line Win', value: total.lineWin, color: '#4CAF50' },
+      { label: 'Scatter Win', value: total.scatterWin, color: '#9C27B0' },
       { label: 'Total Bet', value: total.totalBet, color: '#2196F3' },
     ];
 
@@ -158,23 +150,19 @@ function WinningsBarChart({ results }: { results: SimulationStats[] }) {
     const chartHeight = height - padding.top - padding.bottom;
     const barWidth = chartWidth / data.length - 20;
 
-    // 繪製柱狀圖
     data.forEach((d, i) => {
       const x = padding.left + i * (barWidth + 20) + 10;
       const barHeight = (d.value / maxValue) * chartHeight;
       const y = padding.top + chartHeight - barHeight;
 
-      // 繪製柱子
       ctx.fillStyle = d.color;
       ctx.fillRect(x, y, barWidth, barHeight);
 
-      // 繪製標籤
       ctx.fillStyle = '#ccc';
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(d.label, x + barWidth / 2, height - padding.bottom + 15);
 
-      // 繪製數值
       ctx.fillStyle = '#fff';
       ctx.font = '10px sans-serif';
       ctx.fillText(`$${d.value.toLocaleString()}`, x + barWidth / 2, y - 5);
@@ -204,7 +192,6 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 支援 HiDPI 螢幕
     const dpr = window.devicePixelRatio || 1;
     canvas.width = LOGICAL_WIDTH * dpr;
     canvas.height = LOGICAL_HEIGHT * dpr;
@@ -215,7 +202,6 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
     const width = LOGICAL_WIDTH;
     const height = LOGICAL_HEIGHT;
 
-    // 清除畫布
     ctx.clearRect(0, 0, width, height);
 
     if (results.length === 0) {
@@ -227,7 +213,6 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
       return;
     }
 
-    // 計算累積 RTP
     let cumulativeBet = 0;
     let cumulativeWin = 0;
     const rtpData = results.map(r => {
@@ -244,11 +229,9 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
     const maxRTP = Math.max(...rtpData, 110);
     const range = maxRTP - minRTP || 10;
 
-    // 繪製背景
     ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
     ctx.fillRect(padding.left, padding.top, chartWidth, chartHeight);
 
-    // 繪製 100% 參考線
     const hundredY = padding.top + ((maxRTP - 100) / range) * chartHeight;
     if (hundredY >= padding.top && hundredY <= height - padding.bottom) {
       ctx.strokeStyle = '#666';
@@ -260,7 +243,6 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
       ctx.setLineDash([]);
     }
 
-    // 繪製折線
     ctx.strokeStyle = '#6366f1';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -278,7 +260,6 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
 
     ctx.stroke();
 
-    // 繪製終點
     if (rtpData.length > 0) {
       const lastRTP = rtpData[rtpData.length - 1];
       const lastX = width - padding.right;
@@ -289,14 +270,12 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
       ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
       ctx.fill();
 
-      // 顯示當前 RTP
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(`${lastRTP.toFixed(2)}%`, lastX - 8, lastY - 8);
     }
 
-    // 繪製 Y 軸標籤
     ctx.fillStyle = '#888';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
@@ -326,7 +305,6 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 支援 HiDPI 螢幕
     const dpr = window.devicePixelRatio || 1;
     canvas.width = LOGICAL_SIZE * dpr;
     canvas.height = LOGICAL_SIZE * dpr;
@@ -337,7 +315,6 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
     const width = LOGICAL_SIZE;
     const height = LOGICAL_SIZE;
 
-    // 清除畫布
     ctx.clearRect(0, 0, width, height);
 
     if (symbols.length === 0) {
@@ -354,7 +331,6 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 30;
 
-    // 顏色調色盤
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
       '#FF9F40', '#FF6384', '#C9CBCF', '#7BC225', '#E8E87E',
@@ -366,7 +342,6 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
       const sliceAngle = (symbol.ngWeight / totalWeight) * Math.PI * 2;
       const endAngle = startAngle + sliceAngle;
 
-      // 繪製扇形
       ctx.fillStyle = colors[i % colors.length];
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
@@ -374,7 +349,6 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
       ctx.closePath();
       ctx.fill();
 
-      // 繪製標籤（只顯示權重 > 5% 的）
       if (symbol.ngWeight / totalWeight > 0.05) {
         const midAngle = startAngle + sliceAngle / 2;
         const labelRadius = radius * 0.65;
@@ -391,13 +365,11 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
       startAngle = endAngle;
     });
 
-    // 繪製中心圓（甜甜圈效果）
     ctx.fillStyle = '#1a1a2e';
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // 中心文字
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';

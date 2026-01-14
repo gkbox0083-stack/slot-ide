@@ -10,10 +10,10 @@ import {
 import { Simulator } from '../../analytics/simulator.js';
 
 /**
- * Step 6: 數值權重模擬
+ * Step 6: 數值權重模擬（V3 簡化版）
  */
 export function SimulationStep() {
-  const { baseBet, visualConfig, symbols, outcomeConfig } = useGameConfigStore();
+  const { baseBet, visualConfig, symbols, outcomes } = useGameConfigStore();
   const {
     isPoolsBuilt,
     poolStatus,
@@ -31,9 +31,6 @@ export function SimulationStep() {
   const [buildError, setBuildError] = useState<string | null>(null);
   const simulatorRef = useRef<Simulator | null>(null);
 
-  // 合併 NG 和 FG outcomes 用於同步
-  const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
-
   // 同步 Engine 資料
   useEffect(() => {
     // 同步符號
@@ -41,10 +38,10 @@ export function SimulationStep() {
       symbolManager.update(symbol);
     });
 
-    // 同步 Outcomes
+    // 同步 Outcomes（V3 簡化版）
     const currentOutcomes = outcomeManager.getAll();
     const currentIds = currentOutcomes.map((o) => o.id);
-    const newIds = allOutcomes.map((o) => o.id);
+    const newIds = outcomes.map((o) => o.id);
 
     // 移除不存在的
     currentIds.forEach((id) => {
@@ -54,14 +51,14 @@ export function SimulationStep() {
     });
 
     // 更新或新增
-    allOutcomes.forEach((outcome) => {
+    outcomes.forEach((outcome) => {
       if (currentIds.includes(outcome.id)) {
         outcomeManager.update(outcome);
       } else {
         outcomeManager.add(outcome);
       }
     });
-  }, [symbols, allOutcomes]);
+  }, [symbols, outcomes]);
 
   // 建立盤池
   const handleBuildPools = () => {
@@ -168,9 +165,8 @@ export function SimulationStep() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-surface-600 dark:text-surface-400">狀態:</span>
             <span
-              className={`text-sm font-semibold ${
-                isPoolsBuilt ? 'text-accent-success' : 'text-accent-error'
-              }`}
+              className={`text-sm font-semibold ${isPoolsBuilt ? 'text-accent-success' : 'text-accent-error'
+                }`}
             >
               {isPoolsBuilt ? '✅ 已建立' : '❌ 未建立'}
             </span>
@@ -194,9 +190,8 @@ export function SimulationStep() {
                       {pool.outcomeName}
                     </span>
                     <span
-                      className={`font-semibold ${
-                        pool.isFull ? 'text-accent-success' : 'text-accent-warning'
-                      }`}
+                      className={`font-semibold ${pool.isFull ? 'text-accent-success' : 'text-accent-warning'
+                        }`}
                     >
                       {pool.generated}/{pool.cap} {pool.isFull ? '✅' : '⚠️'}
                     </span>
@@ -227,10 +222,9 @@ export function SimulationStep() {
                   disabled={isSimulating}
                   className={`
                     flex-1 py-2 px-3 text-sm rounded-md transition-colors
-                    ${
-                      simulationCount === count
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
+                    ${simulationCount === count
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
                     }
                     disabled:opacity-50 disabled:cursor-not-allowed
                   `}

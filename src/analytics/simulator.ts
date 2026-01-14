@@ -8,8 +8,8 @@ import { calculateStatistics } from './statistics.js';
  * 模擬配置
  */
 export interface SimulationConfig {
-  count: number;           // 模擬次數
-  baseBet: number;         // 單次投注
+  count: number;
+  baseBet: number;
   visualConfig: VisualConfig;
 }
 
@@ -17,13 +17,13 @@ export interface SimulationConfig {
  * 單次 Spin 結果
  */
 export interface SpinResult {
-  index: number;           // 第幾次 (1-based)
+  index: number;
   outcomeId: string;
   outcomeName: string;
   win: number;
   bet: number;
-  profit: number;          // win - bet
-  cumulativeProfit: number; // 累積盈虧
+  profit: number;
+  cumulativeProfit: number;
 }
 
 /**
@@ -31,8 +31,8 @@ export interface SpinResult {
  */
 export interface SimulationResult {
   spins: SpinResult[];
-  statistics: Statistics;  // 從 statistics.ts 匯入
-  duration: number;        // 執行時間 (ms)
+  statistics: Statistics;
+  duration: number;
 }
 
 /**
@@ -41,7 +41,7 @@ export interface SimulationResult {
 export type ProgressCallback = (progress: number, current: number, total: number) => void;
 
 /**
- * Simulator 類別
+ * Simulator 類別（V3 簡化版）
  */
 export class Simulator {
   private aborted = false;
@@ -49,10 +49,10 @@ export class Simulator {
   constructor(
     private spinExecutor: SpinExecutor,
     private outcomeManager: OutcomeManager
-  ) {}
+  ) { }
 
   /**
-   * 同步執行模擬
+   * 同步執行模擬（V3 簡化版）
    */
   run(config: SimulationConfig): SimulationResult {
     const startTime = performance.now();
@@ -60,16 +60,15 @@ export class Simulator {
     let cumulativeProfit = 0;
 
     for (let i = 0; i < config.count; i++) {
-      // 使用 Engine 的 spin（不可自己產生亂數）
-      const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, 'base', 1, config.baseBet);
-      
+      // V3: 移除 phase 參數
+      const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, config.baseBet);
+
       const win = spinPacket.meta?.win ?? 0;
       const profit = win - config.baseBet;
       cumulativeProfit += profit;
 
-      // 取得 Outcome 名稱
       const outcome = this.outcomeManager.getById(spinPacket.meta?.outcomeId ?? '');
-      
+
       spins.push({
         index: i + 1,
         outcomeId: spinPacket.meta?.outcomeId ?? '',
@@ -88,8 +87,7 @@ export class Simulator {
   }
 
   /**
-   * 非同步執行模擬（支援進度回調）
-   * 使用 setTimeout 分批執行，避免阻塞 UI
+   * 非同步執行模擬（V3 簡化版）
    */
   async runAsync(
     config: SimulationConfig,
@@ -100,11 +98,10 @@ export class Simulator {
       const spins: SpinResult[] = [];
       let cumulativeProfit = 0;
       let current = 0;
-      const batchSize = 100; // 每批執行 100 次
+      const batchSize = 100;
 
       const processBatch = () => {
         if (this.aborted) {
-          // 如果被中止，返回目前結果
           const duration = performance.now() - startTime;
           const statistics = calculateStatistics(spins, config.baseBet, this.outcomeManager);
           resolve({ spins, statistics, duration });
@@ -112,15 +109,16 @@ export class Simulator {
         }
 
         const end = Math.min(current + batchSize, config.count);
-        
+
         for (let i = current; i < end; i++) {
-          const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, 'base', 1, config.baseBet);
+          // V3: 移除 phase 參數
+          const spinPacket = this.spinExecutor.spin(config.visualConfig, undefined, config.baseBet);
           const win = spinPacket.meta?.win ?? 0;
           const profit = win - config.baseBet;
           cumulativeProfit += profit;
 
           const outcome = this.outcomeManager.getById(spinPacket.meta?.outcomeId ?? '');
-          
+
           spins.push({
             index: i + 1,
             outcomeId: spinPacket.meta?.outcomeId ?? '',
@@ -133,13 +131,13 @@ export class Simulator {
         }
 
         current = end;
-        
+
         if (onProgress) {
           onProgress(current / config.count, current, config.count);
         }
 
         if (current < config.count) {
-          setTimeout(processBatch, 0); // 讓出控制權給 UI
+          setTimeout(processBatch, 0);
         } else {
           const duration = performance.now() - startTime;
           const statistics = calculateStatistics(spins, config.baseBet, this.outcomeManager);
@@ -159,4 +157,3 @@ export class Simulator {
     this.aborted = true;
   }
 }
-

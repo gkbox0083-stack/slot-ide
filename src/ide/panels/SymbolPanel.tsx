@@ -11,8 +11,8 @@ import {
 } from '../../engine/score-distribution.js';
 
 /**
- * SymbolPanel Symbol 設定面板（V2 擴展版）
- * 支援 Wild/Scatter 配置、ngWeight/fgWeight 雙欄
+ * SymbolPanel Symbol 設定面板（V3 簡化版）
+ * 支援 Wild 配置、Scatter 直接賦值設定
  */
 export function SymbolPanel() {
   const { symbols, updateSymbol, addSymbol, removeSymbol, setSymbols } = useGameConfigStore();
@@ -208,14 +208,11 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
 
               if (type === 'wild' && !updated.wildConfig) {
                 updated.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
-              } else if (type === 'scatter' && !updated.scatterConfig) {
-                updated.scatterConfig = {
-                  triggerCount: 3,
-                  freeSpinCount: 10,
-                  enableRetrigger: true,
-                  retriggerSpinCount: 5,
-                  enableMultiplier: true,
-                  multiplierValue: 2,
+              } else if (type === 'scatter' && !updated.scatterPayoutConfig) {
+                // V3: 使用 Scatter 直接賦值，不再觸發 Free Spin
+                updated.scatterPayoutConfig = {
+                  minCount: 3,
+                  payoutByCount: { 3: 25, 4: 50, 5: 100, 6: 200 }
                 };
               }
               setEditedSymbol(updated);
@@ -333,123 +330,76 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
         </div>
       )}
 
-      {/* Free Spin 觸發設定 (P2-10 通用版) */}
-      <div className="p-3 bg-surface-900/50 rounded-lg border border-surface-700/50 space-y-4">
-        <label className="flex items-center gap-2 text-sm font-bold text-primary-400 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={editedSymbol.fsTriggerConfig?.enabled || false}
-            onChange={(e) => {
-              const enabled = e.target.checked;
-              setEditedSymbol({
-                ...editedSymbol,
-                fsTriggerConfig: {
-                  enabled,
-                  triggerCount: editedSymbol.fsTriggerConfig?.triggerCount ?? 3,
-                  freeSpinCount: editedSymbol.fsTriggerConfig?.freeSpinCount ?? 10,
-                  enableRetrigger: editedSymbol.fsTriggerConfig?.enableRetrigger ?? true,
-                  retriggerSpinCount: editedSymbol.fsTriggerConfig?.retriggerSpinCount ?? 5,
-                  enableMultiplier: editedSymbol.fsTriggerConfig?.enableMultiplier ?? true,
-                  multiplierValue: editedSymbol.fsTriggerConfig?.multiplierValue ?? 2,
-                }
-              });
-            }}
-            className="rounded border-surface-600 text-primary-600 focus:ring-primary-500"
-          />
-          🎰 啟用 Free Spin 觸發
-        </label>
+      {/* Scatter 直接賦值設定 (V3 簡化版) */}
+      {editedSymbol.type === 'scatter' && (
+        <div className="p-3 bg-purple-900/20 border border-purple-700/50 rounded-lg space-y-3">
+          <h6 className="text-xs font-semibold text-purple-400 mb-2">💎 Scatter 直接賦值設定</h6>
+          <p className="text-xs text-surface-500 mb-3">
+            當盤面出現指定數量的 Scatter 時，直接給予對應倍率的獎金（不觸發 Free Spin）
+          </p>
 
-        {editedSymbol.fsTriggerConfig?.enabled && (
-          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="space-y-1">
-              <label className="text-xs text-surface-400">觸發數量</label>
-              <select
-                value={editedSymbol.fsTriggerConfig.triggerCount}
-                onChange={(e) => setEditedSymbol({
-                  ...editedSymbol,
-                  fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, triggerCount: Number(e.target.value) }
-                })}
-                className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
-              >
-                {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} 個符號</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-surface-400">FS 次數</label>
-              <input
-                type="number"
-                value={editedSymbol.fsTriggerConfig.freeSpinCount}
-                onChange={(e) => setEditedSymbol({
-                  ...editedSymbol,
-                  fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, freeSpinCount: Math.max(1, Number(e.target.value)) }
-                })}
-                className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
-                min={1}
-                max={100}
-              />
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <span className="text-surface-400">數量</span>
+              <span className="text-surface-400 col-span-3">賠率 (x bet)</span>
             </div>
 
-            <div className="col-span-2 space-y-2 pt-2 border-t border-surface-700/50">
-              <label className="flex items-center gap-2 text-sm text-surface-300">
+            {[3, 4, 5, 6].map(count => (
+              <div key={count} className="grid grid-cols-4 gap-2 items-center">
+                <span className="text-sm text-surface-300 font-semibold">{count} 個</span>
                 <input
-                  type="checkbox"
-                  checked={editedSymbol.fsTriggerConfig.enableRetrigger}
-                  onChange={(e) => setEditedSymbol({
-                    ...editedSymbol,
-                    fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, enableRetrigger: e.target.checked }
-                  })}
-                  className="rounded border-surface-600"
+                  type="number"
+                  min={0}
+                  value={editedSymbol.scatterPayoutConfig?.payoutByCount[count] ?? (count === 3 ? 25 : count === 4 ? 50 : count === 5 ? 100 : 200)}
+                  onChange={(e) => {
+                    const value = Math.max(0, Number(e.target.value));
+                    const currentConfig = editedSymbol.scatterPayoutConfig ?? {
+                      minCount: 3,
+                      payoutByCount: { 3: 25, 4: 50, 5: 100, 6: 200 }
+                    };
+                    setEditedSymbol({
+                      ...editedSymbol,
+                      scatterPayoutConfig: {
+                        ...currentConfig,
+                        payoutByCount: {
+                          ...currentConfig.payoutByCount,
+                          [count]: value
+                        }
+                      }
+                    });
+                  }}
+                  className="col-span-2 px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
                 />
-                支援 Retrigger
-                {editedSymbol.fsTriggerConfig.enableRetrigger && (
-                  <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-xs text-surface-500">次數:</span>
-                    <input
-                      type="number"
-                      value={editedSymbol.fsTriggerConfig.retriggerSpinCount}
-                      onChange={(e) => setEditedSymbol({
-                        ...editedSymbol,
-                        fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, retriggerSpinCount: Math.max(1, Number(e.target.value)) }
-                      })}
-                      className="w-16 px-2 py-1 bg-surface-900 border border-surface-600 rounded text-xs text-center"
-                    />
-                  </div>
-                )}
-              </label>
-
-              <label className="flex items-center gap-2 text-sm text-surface-300">
-                <input
-                  type="checkbox"
-                  checked={editedSymbol.fsTriggerConfig.enableMultiplier}
-                  onChange={(e) => setEditedSymbol({
-                    ...editedSymbol,
-                    fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, enableMultiplier: e.target.checked }
-                  })}
-                  className="rounded border-surface-600"
-                />
-                固定倍率 (FG)
-                {editedSymbol.fsTriggerConfig.enableMultiplier && (
-                  <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-xs text-surface-500">倍率:</span>
-                    <input
-                      type="number"
-                      value={editedSymbol.fsTriggerConfig.multiplierValue}
-                      onChange={(e) => setEditedSymbol({
-                        ...editedSymbol,
-                        fsTriggerConfig: { ...editedSymbol.fsTriggerConfig!, multiplierValue: Math.max(1, Math.min(10, Number(e.target.value))) }
-                      })}
-                      className="w-16 px-2 py-1 bg-surface-900 border border-surface-600 rounded text-xs text-center"
-                      min={1}
-                      max={10}
-                    />
-                    <span className="text-xs text-surface-500">x</span>
-                  </div>
-                )}
-              </label>
-            </div>
+                <span className="text-xs text-surface-500">x</span>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+
+          <div className="pt-2 border-t border-purple-700/30">
+            <label className="text-xs text-surface-400 block mb-1">最少觸發數量</label>
+            <select
+              value={editedSymbol.scatterPayoutConfig?.minCount ?? 3}
+              onChange={(e) => {
+                const minCount = Number(e.target.value);
+                const currentConfig = editedSymbol.scatterPayoutConfig ?? {
+                  minCount: 3,
+                  payoutByCount: { 3: 25, 4: 50, 5: 100, 6: 200 }
+                };
+                setEditedSymbol({
+                  ...editedSymbol,
+                  scatterPayoutConfig: {
+                    ...currentConfig,
+                    minCount
+                  }
+                });
+              }}
+              className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+            >
+              {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} 個</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* 操作按鈕 */}
       <div className="flex gap-2">
@@ -506,14 +456,10 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
     if (symbol.type === 'wild') {
       symbol.wildConfig = { canReplaceNormal: true, canReplaceSpecial: false };
     } else if (symbol.type === 'scatter') {
-      symbol.fsTriggerConfig = {
-        enabled: false,
-        triggerCount: 3,
-        freeSpinCount: 10,
-        enableRetrigger: true,
-        retriggerSpinCount: 5,
-        enableMultiplier: true,
-        multiplierValue: 2,
+      // V3: 使用 Scatter 直接賦值，不再觸發 Free Spin
+      symbol.scatterPayoutConfig = {
+        minCount: 3,
+        payoutByCount: { 3: 25, 4: 50, 5: 100, 6: 200 }
       };
     }
 
@@ -649,71 +595,51 @@ function ScoreDistributionPreview() {
 }
 
 /**
- * 權重分佈預覽
+ * 權重分佈預覽（V3 簡化版）
+ * 只顯示視覺權重（appearanceWeight），用於滾動動畫
  */
 function WeightDistribution({ symbols }: { symbols: SymbolDefinition[] }) {
-  const totalNGWeight = symbols.reduce((sum, s) => sum + s.ngWeight, 0);
-  const totalFGWeight = symbols.reduce((sum, s) => sum + s.fgWeight, 0);
+  const totalWeight = symbols.reduce((sum, s) => sum + s.appearanceWeight, 0);
 
   return (
     <div className="bg-surface-900/50 rounded-lg p-3" role="region" aria-label="權重分佈預覽">
-      <h5 className="text-xs font-semibold text-surface-400 mb-2">權重分佈預覽</h5>
+      <h5 className="text-xs font-semibold text-surface-400 mb-2">視覺權重分佈</h5>
+      <p className="text-xs text-surface-500 mb-2">
+        僅影響滾動動畫中符號出現頻率，不影響中獎機率
+      </p>
       <div className="space-y-1.5 max-h-48 overflow-y-auto" role="list">
         {symbols.map((symbol) => {
-          const ngRate = totalNGWeight > 0 ? (symbol.ngWeight / totalNGWeight) * 100 : 0;
-          const fgRate = totalFGWeight > 0 ? (symbol.fgWeight / totalFGWeight) * 100 : 0;
+          const rate = totalWeight > 0 ? (symbol.appearanceWeight / totalWeight) * 100 : 0;
 
           return (
             <div
               key={symbol.id}
               className="flex items-center gap-2 text-xs"
               role="listitem"
-              aria-label={`${symbol.id}: NG ${ngRate.toFixed(1)}%, FG ${fgRate.toFixed(1)}%`}
+              aria-label={`${symbol.id}: ${rate.toFixed(1)}%`}
             >
               <span role="text" className="w-12 font-mono text-surface-300">{symbol.id}</span>
-              <div className="flex-1 flex gap-1" role="group" aria-label="權重條">
+              <div
+                className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
+                role="progressbar"
+                aria-valuenow={rate}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${rate.toFixed(1)}%`}
+              >
                 <div
-                  className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
-                  role="progressbar"
-                  aria-valuenow={ngRate}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`NG: ${ngRate.toFixed(1)}%`}
-                >
-                  <div
-                    className="h-full bg-blue-500"
-                    style={{ width: `${ngRate}%` }}
-                  />
-                </div>
-                <div
-                  className="flex-1 h-3 bg-surface-700 rounded overflow-hidden"
-                  role="progressbar"
-                  aria-valuenow={fgRate}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`FG: ${fgRate.toFixed(1)}%`}
-                >
-                  <div
-                    className="h-full bg-purple-500"
-                    style={{ width: `${fgRate}%` }}
-                  />
-                </div>
+                  className="h-full bg-green-500"
+                  style={{ width: `${rate}%` }}
+                />
               </div>
-              <span role="text" className="w-16 text-right text-surface-500">
-                {ngRate.toFixed(1)}% / {fgRate.toFixed(1)}%
+              <span role="text" className="w-12 text-right text-surface-500">
+                {rate.toFixed(1)}%
               </span>
             </div>
           );
         })}
       </div>
-      <div className="flex justify-center gap-4 mt-2 text-xs text-surface-500" role="group" aria-label="圖例">
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-blue-500 rounded" aria-hidden="true"></span> NG
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-purple-500 rounded" aria-hidden="true"></span> FG
-        </span>
-      </div>
     </div>
   );
 }
+

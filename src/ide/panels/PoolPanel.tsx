@@ -8,15 +8,14 @@ import {
 } from '../../engine/score-distribution.js';
 
 /**
- * Pool 管理面板
- * 包含：盤面模式選擇、Build Pools、Pool 狀態顯示
+ * Pool 管理面板（V3 簡化版）
  */
 export function PoolPanel() {
   const {
     boardConfig,
     setBoardConfig,
     symbols,
-    outcomeConfig,
+    outcomes,
     linesConfig,
     isPoolsBuilt,
     setIsPoolsBuilt,
@@ -34,7 +33,7 @@ export function PoolPanel() {
     if (!isPoolsBuilt) {
       setPoolStatus([]);
       setBuildError(null);
-      setActualRTP(null); // P2-12: Clear RTP on pool clear
+      setActualRTP(null);
     }
   }, [isPoolsBuilt]);
 
@@ -49,12 +48,10 @@ export function PoolPanel() {
 
   const confirmBoardChange = () => {
     if (pendingRows) {
-      // 清空 Pool
       poolBuilder.clearPools();
       setPoolStatus([]);
-      setIsPoolsBuilt(false); // 更新 store
+      setIsPoolsBuilt(false);
       setBuildError(null);
-      // 更新盤面配置
       setBoardConfig({ cols: 5, rows: pendingRows });
     }
     setShowConfirmDialog(false);
@@ -77,11 +74,10 @@ export function PoolPanel() {
       // 同步符號（完整替換）
       symbolManager.setSymbols(symbols);
 
-      // 同步 Outcomes（完整替換）
-      const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
-      outcomeManager.setOutcomes(allOutcomes);
+      // 同步 Outcomes（V3 簡化版：直接使用 outcomes）
+      outcomeManager.setOutcomes(outcomes);
 
-      // 同步線路配置 (Fix: Pay Lines Not Updating)
+      // 同步線路配置
       linesManager.setLinesConfig(linesConfig);
 
       // 建立盤池
@@ -91,11 +87,10 @@ export function PoolPanel() {
         setPoolStatus(result.pools);
         setIsPoolsBuilt(true);
 
-        // P2-12: 計算實際 RTP
-        const allOutcomes = [...outcomeConfig.ngOutcomes, ...outcomeConfig.fgOutcomes];
+        // 計算實際 RTP
         const rtpResult = calculateActualPoolRTP(
           result.pools,
-          allOutcomes,
+          outcomes,
           (outcomeId) => {
             const pool = poolBuilder.getPool(outcomeId);
             return pool ? pool.boards : [];
@@ -108,7 +103,7 @@ export function PoolPanel() {
         setBuildError(result.errors.join('; ') || '建立盤池失敗');
         setPoolStatus(result.pools);
         const hasAnyPool = result.pools.some(p => p.generated > 0);
-        setIsPoolsBuilt(hasAnyPool); // 更新 store
+        setIsPoolsBuilt(hasAnyPool);
       }
     } catch (error) {
       setBuildError(error instanceof Error ? error.message : String(error));
@@ -120,7 +115,7 @@ export function PoolPanel() {
   const handleClearPools = () => {
     poolBuilder.clearPools();
     setPoolStatus([]);
-    setIsPoolsBuilt(false); // 更新 store
+    setIsPoolsBuilt(false);
     setBuildError(null);
   };
 
@@ -243,17 +238,13 @@ export function PoolPanel() {
             <span className="text-surface-200">{symbols.length}</span>
           </div>
           <div className="flex justify-between text-surface-400">
-            <span>NG Outcomes:</span>
-            <span className="text-surface-200">{outcomeConfig.ngOutcomes.length}</span>
+            <span>Outcomes:</span>
+            <span className="text-surface-200">{outcomes.length}</span>
           </div>
           <div className="flex justify-between text-surface-400">
-            <span>FG Outcomes:</span>
-            <span className="text-surface-200">{outcomeConfig.fgOutcomes.length}</span>
-          </div>
-          <div className="flex justify-between text-surface-400">
-            <span>Free Spin:</span>
+            <span>Scatter:</span>
             <span className={symbols.some(s => s.type === 'scatter') ? 'text-green-400' : 'text-surface-500'}>
-              {symbols.some(s => s.type === 'scatter') ? '✅ 已設定 Scatter' : '❌ 無 Scatter'}
+              {symbols.some(s => s.scatterPayoutConfig) ? '✅ 已設定' : '❌ 無設定'}
             </span>
           </div>
         </div>
@@ -284,25 +275,25 @@ export function PoolPanel() {
         </div>
       )}
 
-      {/* P2-12 Phase 2: RTP 比較 */}
+      {/* RTP 分析 */}
       {actualRTP && isPoolsBuilt && (
         <div className="p-4 bg-surface-800 rounded-lg">
           <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
             📈 RTP 分析
           </h4>
 
-          {/* RTP 總覽 */}
+          {/* RTP 總覽（V3 簡化版） */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             <div className="bg-surface-900 rounded-lg p-3 text-center">
-              <div className="text-xs text-surface-500 mb-1">NG RTP</div>
+              <div className="text-xs text-surface-500 mb-1">Line RTP</div>
               <div className="text-lg font-mono text-blue-400">
-                {actualRTP.ngRTP.toFixed(2)}%
+                {actualRTP.lineRTP.toFixed(2)}%
               </div>
             </div>
             <div className="bg-surface-900 rounded-lg p-3 text-center">
-              <div className="text-xs text-surface-500 mb-1">FG 貢獻</div>
+              <div className="text-xs text-surface-500 mb-1">Scatter RTP</div>
               <div className="text-lg font-mono text-purple-400">
-                {actualRTP.fgRTPContribution.toFixed(2)}%
+                {actualRTP.scatterRTP.toFixed(2)}%
               </div>
             </div>
             <div className="bg-gradient-to-br from-primary-900/50 to-surface-900 rounded-lg p-3 text-center border border-primary-700">
@@ -315,17 +306,15 @@ export function PoolPanel() {
 
           {/* Outcome 詳細 */}
           <div className="space-y-1 max-h-48 overflow-y-auto">
-            <div className="grid grid-cols-5 gap-1 text-xs text-surface-500 px-2 mb-1">
+            <div className="grid grid-cols-4 gap-1 text-xs text-surface-500 px-2 mb-1">
               <span>Outcome</span>
               <span className="text-right">機率</span>
               <span className="text-right">平均分</span>
               <span className="text-right">貢獻</span>
-              <span></span>
             </div>
             {actualRTP.outcomeDetails.map(detail => (
               <div key={detail.outcomeId}
-                className={`grid grid-cols-5 gap-1 text-xs px-2 py-1 rounded ${detail.phase === 'ng' ? 'bg-blue-900/20' : 'bg-purple-900/20'
-                  }`}
+                className="grid grid-cols-4 gap-1 text-xs px-2 py-1 rounded bg-surface-900/50"
               >
                 <span className="text-surface-300 truncate" title={detail.outcomeName}>
                   {detail.outcomeName}
@@ -339,10 +328,6 @@ export function PoolPanel() {
                 <span className={`text-right font-mono ${detail.contribution > 0 ? 'text-green-400' : 'text-surface-500'
                   }`}>
                   {detail.contribution.toFixed(2)}%
-                </span>
-                <span className={`text-center ${detail.phase === 'ng' ? 'text-blue-400' : 'text-purple-400'
-                  }`}>
-                  {detail.phase.toUpperCase()}
                 </span>
               </div>
             ))}
@@ -387,4 +372,3 @@ export function PoolPanel() {
     </div>
   );
 }
-

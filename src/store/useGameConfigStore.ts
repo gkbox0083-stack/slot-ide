@@ -1,15 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SymbolDefinition } from '../types/symbol.js';
-import type { Outcome, OutcomeConfig } from '../types/outcome.js';
+import type { Outcome } from '../types/outcome.js';
 import type { LinesConfig } from '../types/lines.js';
 import type { VisualConfig, AssetsPatch } from '../types/visual.js';
 import type { SpinPacket } from '../types/spin-packet.js';
 import type { BoardConfig, Board } from '../types/board.js';
-import type { FreeSpinConfig } from '../types/free-spin.js';
 
 /**
- * 遊戲配置狀態
+ * 遊戲配置狀態（V3 簡化版）
  */
 export interface GameConfigState {
   // 遊戲基本資料
@@ -23,17 +22,14 @@ export interface GameConfigState {
   // 符號設定
   symbols: SymbolDefinition[];
 
-  // 賠率設定（NG/FG 分離）
-  outcomeConfig: OutcomeConfig;
+  // 賠率設定（V3 簡化版：單一列表）
+  outcomes: Outcome[];
 
   // 線型設定
   linesConfig: LinesConfig;
 
   // 視覺設定
   visualConfig: VisualConfig;
-
-  // Free Spin 設定
-  freeSpinConfig: FreeSpinConfig;
 
   // 素材資源
   assets: AssetsPatch;
@@ -64,8 +60,8 @@ export interface GameConfigActions {
   addSymbol: (symbol: SymbolDefinition) => void;
   removeSymbol: (id: string) => void;
 
-  // 賠率設定
-  setOutcomeConfig: (config: OutcomeConfig) => void;
+  // 賠率設定（V3 簡化版）
+  setOutcomes: (outcomes: Outcome[]) => void;
   addOutcome: (outcome: Omit<Outcome, 'id'>) => void;
   updateOutcome: (outcome: Outcome) => void;
   removeOutcome: (id: string) => void;
@@ -77,9 +73,6 @@ export interface GameConfigActions {
   setVisualConfig: (config: VisualConfig) => void;
   updateAnimationConfig: (animation: Partial<VisualConfig['animation']>) => void;
   updateLayoutConfig: (layout: Partial<VisualConfig['layout']>) => void;
-
-  // Free Spin 設定
-  setFreeSpinConfig: (config: FreeSpinConfig) => void;
 
   // 素材資源
   setAssets: (assets: AssetsPatch) => void;
@@ -101,7 +94,7 @@ export interface GameConfigActions {
 }
 
 /**
- * 預設符號列表（V2 擴展）
+ * 預設符號列表（V3 簡化版）
  */
 export const defaultSymbols: SymbolDefinition[] = [
   // 高分符號
@@ -125,7 +118,7 @@ export const defaultSymbols: SymbolDefinition[] = [
     fgWeight: 15,
     wildConfig: { canReplaceNormal: true, canReplaceSpecial: false }
   },
-  // Scatter 符號
+  // Scatter 符號（V3 直接賦值模式）
   {
     id: 'SCATTER',
     name: '分散',
@@ -135,37 +128,27 @@ export const defaultSymbols: SymbolDefinition[] = [
     appearanceWeight: 3,
     ngWeight: 3,
     fgWeight: 5,
-    fsTriggerConfig: {
-      enabled: true,
-      triggerCount: 3,
-      freeSpinCount: 10,
-      enableRetrigger: true,
-      retriggerSpinCount: 5,
-      enableMultiplier: true,
-      multiplierValue: 2
+    scatterPayoutConfig: {
+      minCount: 3,
+      payoutByCount: {
+        3: 25,   // 3 個 Scatter = 25x bet
+        4: 50,   // 4 個 Scatter = 50x bet
+        5: 100,  // 5 個 Scatter = 100x bet
+      }
     }
   },
 ];
 
 /**
- * 預設 Outcome 配置（NG/FG 分離）
+ * 預設 Outcome 配置（V3 簡化版：單一列表）
  */
-export const defaultOutcomeConfig: OutcomeConfig = {
-  ngOutcomes: [
-    { id: 'ng_lose', name: '未中獎', phase: 'ng', multiplierRange: { min: 0, max: 0 }, weight: 600 },
-    { id: 'ng_small', name: '小獎', phase: 'ng', multiplierRange: { min: 1, max: 10 }, weight: 300 },
-    { id: 'ng_medium', name: '中獎', phase: 'ng', multiplierRange: { min: 11, max: 50 }, weight: 80 },
-    { id: 'ng_big', name: '大獎', phase: 'ng', multiplierRange: { min: 51, max: 200 }, weight: 18 },
-    { id: 'ng_jackpot', name: '頭獎', phase: 'ng', multiplierRange: { min: 201, max: 500 }, weight: 2 },
-  ],
-  fgOutcomes: [
-    { id: 'fg_lose', name: '未中獎', phase: 'fg', multiplierRange: { min: 0, max: 0 }, weight: 400 },
-    { id: 'fg_small', name: '小獎', phase: 'fg', multiplierRange: { min: 1, max: 10 }, weight: 350 },
-    { id: 'fg_medium', name: '中獎', phase: 'fg', multiplierRange: { min: 11, max: 50 }, weight: 180 },
-    { id: 'fg_big', name: '大獎', phase: 'fg', multiplierRange: { min: 51, max: 200 }, weight: 60 },
-    { id: 'fg_jackpot', name: '頭獎', phase: 'fg', multiplierRange: { min: 201, max: 500 }, weight: 10 },
-  ],
-};
+export const defaultOutcomes: Outcome[] = [
+  { id: 'lose', name: '未中獎', multiplierRange: { min: 0, max: 0 }, weight: 600 },
+  { id: 'small', name: '小獎', multiplierRange: { min: 1, max: 10 }, weight: 300 },
+  { id: 'medium', name: '中獎', multiplierRange: { min: 11, max: 50 }, weight: 80 },
+  { id: 'big', name: '大獎', multiplierRange: { min: 51, max: 200 }, weight: 18 },
+  { id: 'jackpot', name: '頭獎', multiplierRange: { min: 201, max: 500 }, weight: 2 },
+];
 
 /**
  * 預設線型配置 (20 條線)
@@ -215,19 +198,6 @@ export const defaultVisualConfig: VisualConfig = {
 };
 
 /**
- * 預設 Free Spin 配置
- */
-export const defaultFreeSpinConfig: FreeSpinConfig = {
-  enabled: true,
-  triggerCount: 3,
-  freeSpinCount: 10,
-  enableRetrigger: true,
-  retriggerSpinCount: 5,
-  enableMultiplier: true,
-  multiplierValue: 2,
-};
-
-/**
  * 預設盤面配置
  */
 export const defaultBoardConfig: BoardConfig = {
@@ -244,10 +214,9 @@ const initialState: GameConfigState = {
   balance: 10000,
   boardConfig: defaultBoardConfig,
   symbols: defaultSymbols,
-  outcomeConfig: defaultOutcomeConfig,
+  outcomes: defaultOutcomes,
   linesConfig: defaultLinesConfig,
   visualConfig: defaultVisualConfig,
-  freeSpinConfig: defaultFreeSpinConfig,
   assets: {},
   currentSpinPacket: null,
   pools: new Map(),
@@ -260,7 +229,7 @@ const initialState: GameConfigState = {
 const generateId = () => `outcome_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
 /**
- * 遊戲配置 Store
+ * 遊戲配置 Store（V3 簡化版）
  */
 export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
   persist(
@@ -278,25 +247,9 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       // 符號設定
       setSymbols: (symbols) => set({ symbols }),
       updateSymbol: (symbol) =>
-        set((state) => {
-          let newSymbols = state.symbols.map((s) => (s.id === symbol.id ? symbol : s));
-
-          // P2-10: 防呆邏輯 - 限制只能有一個符號開啟 Free Spin 觸發
-          if (symbol.fsTriggerConfig?.enabled) {
-            newSymbols = newSymbols.map((s) => {
-              if (s.id === symbol.id) return s;
-              if (s.fsTriggerConfig?.enabled) {
-                return {
-                  ...s,
-                  fsTriggerConfig: { ...s.fsTriggerConfig, enabled: false },
-                };
-              }
-              return s;
-            });
-          }
-
-          return { symbols: newSymbols };
-        }),
+        set((state) => ({
+          symbols: state.symbols.map((s) => (s.id === symbol.id ? symbol : s)),
+        })),
       addSymbol: (symbol) =>
         set((state) => ({
           symbols: [...state.symbols, symbol],
@@ -306,55 +259,21 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
           symbols: state.symbols.filter((s) => s.id !== id),
         })),
 
-      // 賠率設定
-      setOutcomeConfig: (config) => set({ outcomeConfig: config }),
+      // 賠率設定（V3 簡化版）
+      setOutcomes: (outcomes) => set({ outcomes }),
       addOutcome: (outcome) =>
-        set((state) => {
-          const newOutcome = { ...outcome, id: generateId() };
-          if (outcome.phase === 'ng') {
-            return {
-              outcomeConfig: {
-                ...state.outcomeConfig,
-                ngOutcomes: [...state.outcomeConfig.ngOutcomes, newOutcome],
-              },
-            };
-          } else {
-            return {
-              outcomeConfig: {
-                ...state.outcomeConfig,
-                fgOutcomes: [...state.outcomeConfig.fgOutcomes, newOutcome],
-              },
-            };
-          }
-        }),
+        set((state) => ({
+          outcomes: [...state.outcomes, { ...outcome, id: generateId() }],
+        })),
       updateOutcome: (outcome) =>
-        set((state) => {
-          if (outcome.phase === 'ng') {
-            return {
-              outcomeConfig: {
-                ...state.outcomeConfig,
-                ngOutcomes: state.outcomeConfig.ngOutcomes.map((o) =>
-                  o.id === outcome.id ? outcome : o
-                ),
-              },
-            };
-          } else {
-            return {
-              outcomeConfig: {
-                ...state.outcomeConfig,
-                fgOutcomes: state.outcomeConfig.fgOutcomes.map((o) =>
-                  o.id === outcome.id ? outcome : o
-                ),
-              },
-            };
-          }
-        }),
+        set((state) => ({
+          outcomes: state.outcomes.map((o) =>
+            o.id === outcome.id ? outcome : o
+          ),
+        })),
       removeOutcome: (id) =>
         set((state) => ({
-          outcomeConfig: {
-            ngOutcomes: state.outcomeConfig.ngOutcomes.filter((o) => o.id !== id),
-            fgOutcomes: state.outcomeConfig.fgOutcomes.filter((o) => o.id !== id),
-          },
+          outcomes: state.outcomes.filter((o) => o.id !== id),
         })),
 
       // 線型設定
@@ -376,9 +295,6 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
             layout: { ...state.visualConfig.layout, ...layout },
           },
         })),
-
-      // Free Spin 設定
-      setFreeSpinConfig: (config) => set({ freeSpinConfig: config }),
 
       // 素材資源
       setAssets: (assets) => set({ assets }),
@@ -423,17 +339,16 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
       resetToDefaults: () => set(initialState),
     }),
     {
-      name: 'slot-ide-game-config',
+      name: 'slot-ide-game-config-v3', // 新的 storage key 避免衝突
       partialize: (state) => ({
         gameName: state.gameName,
         baseBet: state.baseBet,
         balance: state.balance,
         boardConfig: state.boardConfig,
         symbols: state.symbols,
-        outcomeConfig: state.outcomeConfig,
+        outcomes: state.outcomes,
         linesConfig: state.linesConfig,
         visualConfig: state.visualConfig,
-        freeSpinConfig: state.freeSpinConfig,
         assets: state.assets,
       }),
     }

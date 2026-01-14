@@ -8,16 +8,14 @@ import { AssetPanel } from '../panels/AssetPanel.js';
 import { PoolPanel } from '../panels/PoolPanel.js';
 import { SimulationPanel } from '../panels/SimulationPanel.js';
 import { HistoryPanel } from '../panels/HistoryPanel.js';
-import { FreeSpinPanel } from '../panels/FreeSpinPanel.js';
 
-type RightPanelTab = 'numeric' | 'visual' | 'pool' | 'sim' | 'history' | 'freespin';
+type RightPanelTab = 'numeric' | 'visual' | 'pool' | 'sim' | 'history';
 
 /**
  * 可收合區塊元件
  */
 interface CollapsibleSectionProps {
   title: string;
-
   isExpanded: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -59,11 +57,8 @@ function NumericSettingsTab() {
 
   return (
     <div className="p-2">
-
-
       <CollapsibleSection
-        title="Outcomes (NG/FG)"
-
+        title="Outcomes"
         isExpanded={expandedSection === 'outcomes'}
         onToggle={() => toggleSection('outcomes')}
       >
@@ -72,7 +67,6 @@ function NumericSettingsTab() {
 
       <CollapsibleSection
         title="符號設定"
-
         isExpanded={expandedSection === 'symbols'}
         onToggle={() => toggleSection('symbols')}
       >
@@ -81,7 +75,6 @@ function NumericSettingsTab() {
 
       <CollapsibleSection
         title="Pay Lines"
-
         isExpanded={expandedSection === 'lines'}
         onToggle={() => toggleSection('lines')}
       >
@@ -105,7 +98,6 @@ function VisualSettingsTab() {
     <div className="p-2">
       <CollapsibleSection
         title="動畫參數"
-
         isExpanded={expandedSection === 'animation'}
         onToggle={() => toggleSection('animation')}
       >
@@ -114,7 +106,6 @@ function VisualSettingsTab() {
 
       <CollapsibleSection
         title="盤面佈局"
-
         isExpanded={expandedSection === 'layout'}
         onToggle={() => toggleSection('layout')}
       >
@@ -123,7 +114,6 @@ function VisualSettingsTab() {
 
       <CollapsibleSection
         title="素材上傳"
-
         isExpanded={expandedSection === 'assets'}
         onToggle={() => toggleSection('assets')}
       >
@@ -145,9 +135,8 @@ function PoolTab() {
 }
 
 /**
- * 右側遊戲控制面板（V2 三欄式佈局 - 合併所有設定）
- * 移除了頂部按鈕（已移至底部控制欄）
- * 合併了原左側的數值/視覺/Pool 設定
+ * 右側遊戲控制面板（V3 簡化版）
+ * 移除了 FS Tab
  */
 export function GameControlV2() {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('numeric');
@@ -158,7 +147,6 @@ export function GameControlV2() {
     { id: 'pool', label: 'Pool' },
     { id: 'sim', label: 'Sim' },
     { id: 'history', label: 'History' },
-    { id: 'freespin', label: 'FS' },
   ];
 
   return (
@@ -186,7 +174,6 @@ export function GameControlV2() {
         {activeTab === 'pool' && <PoolTab />}
         {activeTab === 'sim' && <SimulationPanel />}
         {activeTab === 'history' && <HistoryPanel />}
-        {activeTab === 'freespin' && <FreeSpinPanel />}
       </div>
     </div>
   );

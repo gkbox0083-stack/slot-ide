@@ -3,12 +3,7 @@ import type { SymbolId } from '../types/board.js';
 import type { OutcomeManager } from './outcome-manager.js';
 import type { SymbolManager } from './symbol-manager.js';
 import type { LinesManager } from './lines-manager.js';
-import type { FreeSpinTriggerConfig } from '../types/symbol.js';
 import { isWildSymbol, isScatterSymbol, canWildReplace } from './symbol-manager.js';
-import {
-  calculateFSTriggerProbability,
-  calculateExpectedFreeSpins,
-} from './rtp-calculator.js';
 
 /**
  * Pool 盤池結構
@@ -40,8 +35,9 @@ export interface BuildResult {
 }
 
 /**
- * PoolBuilder
+ * PoolBuilder（V3 簡化版）
  * 為每個 Outcome 生成符合倍率區間的盤池
+ * 移除 FS 期望值計算，改為 Scatter 直接賦值
  */
 export class PoolBuilder {
   private pools: Map<string, Pool> = new Map();
@@ -56,11 +52,10 @@ export class PoolBuilder {
   ) { }
 
   /**
-   * 設定盤面配置（V2 新增）
+   * 設定盤面配置
    */
   setBoardConfig(config: BoardConfig): void {
     this.boardConfig = config;
-    // 切換盤面配置時清空現有盤池
     this.pools.clear();
   }
 
@@ -72,8 +67,7 @@ export class PoolBuilder {
   }
 
   /**
-   * 為所有 Outcome 建立盤池
-   * @param cap 盤池上限（預設使用 defaultCap）
+   * 為所有 Outcome 建立盤池（V3 簡化版）
    */
   buildPools(cap?: number): BuildResult {
     const targetCap = cap ?? this.defaultCap;
@@ -86,7 +80,6 @@ export class PoolBuilder {
     const poolStatuses: PoolStatus[] = [];
     const outcomes = this.outcomeManager.getAll();
 
-    // 清空現有盤池
     this.pools.clear();
 
     for (const outcome of outcomes) {
@@ -100,8 +93,8 @@ export class PoolBuilder {
         // 1. 生成隨機盤面
         const board = this.generateRandomBoard();
 
-        // 2. 計算盤面分數（根據 Outcome 的 phase 決定是否計算 FS 預期價值）
-        const score = this.calculateBoardScore(board, outcome.phase);
+        // 2. 計算盤面分數（連線 + Scatter 直接賦值）
+        const score = this.calculateBoardScore(board);
 
         // 3. 檢查分數是否在 Outcome 倍率區間
         if (score >= outcome.multiplierRange.min && score <= outcome.multiplierRange.max) {
@@ -109,7 +102,6 @@ export class PoolBuilder {
         }
       }
 
-      // 檢查建池結果
       const generated = pool.length;
       const isFull = generated === targetCap;
 
@@ -123,7 +115,6 @@ export class PoolBuilder {
         }
       }
 
-      // 儲存盤池
       this.pools.set(outcome.id, {
         outcomeId: outcome.id,
         boards: pool,
@@ -147,7 +138,7 @@ export class PoolBuilder {
   }
 
   /**
-   * 生成隨機盤面（支援 5x3 和 5x4）
+   * 生成隨機盤面
    * 使用均勻分布，符號權重不影響數學層
    */
   private generateRandomBoard(): Board {
@@ -158,7 +149,6 @@ export class PoolBuilder {
     for (let col = 0; col < cols; col++) {
       const reel: SymbolId[] = [];
       for (let row = 0; row < rows; row++) {
-        // 均勻分布抽取，不使用權重
         const randomIndex = Math.floor(Math.random() * symbols.length);
         reel.push(symbols[randomIndex].id);
       }
@@ -173,95 +163,41 @@ export class PoolBuilder {
   }
 
   /**
-   * 計算盤面分數（所有中獎線的總分 + FS 預期價值）
-   * 遍歷所有線，累加所有中獎線的 payout
-   * 如果是 NG 盤面且觸發 FS，加上 Free Spin 的預期價值
-   * @param board 盤面
-   * @param phase 遊戲階段（ng 或 fg）
+   * 計算盤面分數（V3 簡化版）
+   * = 連線得分 + Scatter 直接賦值
    */
-  private calculateBoardScore(board: Board, phase: 'ng' | 'fg' = 'ng'): number {
+  private calculateBoardScore(board: Board): number {
     const patterns = this.linesManager.getAllPatterns();
     let totalScore = 0;
 
     // 1. 計算連線得分
     for (const pattern of patterns) {
-      // 計算這條線的連續符號數
       const lineResult = this.calculateLineMatch(board, pattern.positions);
 
       if (lineResult) {
-        // 取得這條線的分數並累加
         const payout = this.symbolManager.getPayout(lineResult.symbol, lineResult.count);
         totalScore += payout;
       }
     }
 
-    // 2. 僅 NG 盤面計算 Free Spin 觸發價值
-    if (phase === 'ng') {
-      totalScore += this.calculateFSExpectedValue(board);
+    // 2. 計算 Scatter 直接賦值（V3 新增）
+    const symbols = this.symbolManager.getAll();
+    const scatterSymbol = symbols.find(s => s.scatterPayoutConfig);
+
+    if (scatterSymbol?.scatterPayoutConfig) {
+      const count = this.countSymbol(board, scatterSymbol.id);
+      const config = scatterSymbol.scatterPayoutConfig;
+
+      if (count >= config.minCount) {
+        totalScore += config.payoutByCount[count] ?? 0;
+      }
     }
 
     return totalScore;
   }
 
   /**
-   * 計算 Free Spin 預期價值
-   * 與 rtp-calculator.ts 使用相同的計算邏輯，確保單一真相來源
-   */
-  private calculateFSExpectedValue(board: Board): number {
-    const symbols = this.symbolManager.getAll();
-    const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
-
-    if (!triggerSymbol?.fsTriggerConfig) {
-      return 0;
-    }
-
-    const config = triggerSymbol.fsTriggerConfig;
-    const count = this.countSymbol(board, triggerSymbol.id);
-
-    if (count < config.triggerCount) {
-      return 0;
-    }
-
-    // 從 FG Outcomes 計算平均倍率
-    const avgFgMultiplier = this.getAvgFgMultiplier();
-
-    // 計算 Multiplier
-    const multiplier = config.enableMultiplier ? config.multiplierValue : 1;
-
-    // 計算預期 Spin 次數（與 rtp-calculator.ts 相同邏輯）
-    const expectedSpins = this.calculateExpectedSpinsFromConfig(config);
-
-    return expectedSpins * avgFgMultiplier * multiplier;
-  }
-
-  /**
-   * 計算預期 Spin 次數（含 Retrigger）
-   * 使用與 rtp-calculator.ts 相同的二項分布計算
-   */
-  private calculateExpectedSpinsFromConfig(config: FreeSpinTriggerConfig): number {
-    if (!config.enableRetrigger) {
-      return config.freeSpinCount;
-    }
-
-    // 計算 FG 中的 Retrigger 機率（使用 rtp-calculator.ts 的函式）
-    const retriggerProbability = calculateFSTriggerProbability(
-      this.symbolManager.getAll(),
-      this.boardConfig,
-      'fg'
-    );
-
-    // 使用 rtp-calculator.ts 的函式計算預期次數
-    return calculateExpectedFreeSpins(
-      config.freeSpinCount,
-      retriggerProbability,
-      config.enableRetrigger
-    );
-  }
-
-  /**
    * 計算盤面上特定符號的數量
-   * ⚠️ 假設：Scatter 觸發不受位置限制（全盤面任意位置皆可）
-   *    如需位置約束，需擴展 fsTriggerConfig 增加 validReels 屬性
    */
   private countSymbol(board: Board, symbolId: SymbolId): number {
     let count = 0;
@@ -276,34 +212,7 @@ export class PoolBuilder {
   }
 
   /**
-   * 取得 FG 平均倍率
-   * 從 FG Outcomes 計算加權平均，作為 Free Spin 預期價值的基礎
-   */
-  private getAvgFgMultiplier(): number {
-    const fgOutcomes = this.outcomeManager.getAll().filter(o => o.phase === 'fg');
-
-    if (fgOutcomes.length === 0) {
-      return 5; // 預設值，當沒有設定 FG Outcomes 時使用
-    }
-
-    // 計算 FG Outcomes 的加權平均倍率
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    for (const outcome of fgOutcomes) {
-      const avgMultiplier = (outcome.multiplierRange.min + outcome.multiplierRange.max) / 2;
-      totalWeight += outcome.weight;
-      weightedSum += avgMultiplier * outcome.weight;
-    }
-
-    return totalWeight > 0 ? weightedSum / totalWeight : 5;
-  }
-
-  /**
    * 計算一條線的連續符號數（含 Wild 替代）
-   * @param board 盤面
-   * @param positions 線條位置 [col, row][]
-   * @returns { symbol, count } 或 null（如果沒有連續符號）
    */
   private calculateLineMatch(
     board: Board,
@@ -319,7 +228,7 @@ export class PoolBuilder {
     );
 
     if (validPositions.length < 3) {
-      return null; // 不足 3 個有效位置，無法成獎
+      return null;
     }
 
     // 取得線上的符號
@@ -327,7 +236,6 @@ export class PoolBuilder {
       ([col, row]) => board.reels[col][row]
     );
 
-    // 使用與 settlement.ts 相同的 Wild 替代邏輯
     const symbolDefs = this.symbolManager.getAll();
     const getSymbolDef = (id: SymbolId) => symbolDefs.find(s => s.id === id);
 
@@ -344,7 +252,6 @@ export class PoolBuilder {
       }
     }
 
-    // 如果全是 Wild/Scatter，不計算
     if (!targetId || !targetDef) {
       return null;
     }
@@ -361,18 +268,14 @@ export class PoolBuilder {
       }
 
       if (currentId === targetId) {
-        // 相同符號
         count++;
       } else if (isWildSymbol(currentDef) && canWildReplace(currentDef, targetDef)) {
-        // Wild 替代
         count++;
       } else {
-        // 不匹配，停止
         break;
       }
     }
 
-    // 至少要有 3 個連續符號才算成獎
     if (count >= 3) {
       return {
         symbol: targetId,
@@ -458,4 +361,3 @@ export class PoolBuilder {
     this.defaultCap = cap;
   }
 }
-

@@ -6,12 +6,12 @@ import { calculateTheoreticalRTPBreakdown } from '../../engine/rtp-calculator.js
 const SPIN_COUNTS = [100, 500, 1000, 5000, 10000];
 
 /**
- * Simulation 面板
- * 顯示模擬設定、累計統計（按下 SIM 按鈕執行模擬）
+ * Simulation 面板（V3 簡化版）
+ * 顯示模擬設定、累計統計
  */
 export function SimulationPanel() {
   const [customCount, setCustomCount] = useState('');
-  
+
   const {
     isRunning,
     progress,
@@ -33,19 +33,17 @@ export function SimulationPanel() {
     }
   }, [customCount, setSpinCount]);
 
-  const { 
-    symbols, 
-    outcomeConfig, 
-    freeSpinConfig, 
+  const {
+    symbols,
+    outcomes,
     boardConfig,
     isPoolsBuilt,
   } = useGameConfigStore();
 
-  // 計算理論 RTP
+  // 計算理論 RTP（V3 簡化版）
   const theoreticalRTP = calculateTheoreticalRTPBreakdown(
     symbols,
-    outcomeConfig,
-    freeSpinConfig,
+    outcomes,
     boardConfig
   );
 
@@ -62,25 +60,21 @@ export function SimulationPanel() {
 
   return (
     <div className="space-y-4 p-4">
-      {/* 理論 RTP */}
+      {/* 理論 RTP（V3 簡化版） */}
       <div className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-lg p-4 border border-indigo-700/50">
         <h4 className="text-sm font-semibold text-indigo-300 mb-3 flex items-center gap-2">
           📐 理論 RTP
         </h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-surface-400">NG RTP:</span>
-            <span className="text-surface-200 font-semibold">{theoreticalRTP.ngRTP.toFixed(2)}%</span>
+            <span className="text-surface-400">Line RTP:</span>
+            <span className="text-surface-200 font-semibold">{theoreticalRTP.lineRTP.toFixed(2)}%</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-surface-400">FG 貢獻:</span>
-            <span className="text-surface-200 font-semibold">{theoreticalRTP.fgRTPContribution.toFixed(2)}%</span>
+            <span className="text-surface-400">Scatter RTP:</span>
+            <span className="text-surface-200 font-semibold">{theoreticalRTP.scatterRTP.toFixed(2)}%</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-surface-400">FG 觸發:</span>
-            <span className="text-surface-200 font-semibold">{theoreticalRTP.fgTriggerProbability.toFixed(4)}%</span>
-          </div>
-          <div className="flex justify-between">
+          <div className="col-span-2 flex justify-between pt-2 border-t border-surface-700">
             <span className="text-yellow-400 font-semibold">總 RTP:</span>
             <span className="text-yellow-400 font-bold">{theoreticalRTP.totalRTP.toFixed(2)}%</span>
           </div>
@@ -97,11 +91,10 @@ export function SimulationPanel() {
             <button
               key={count}
               onClick={() => handleSpinCountSelect(count)}
-              className={`py-2 text-sm rounded transition-all ${
-                spinCount === count && !customCount
+              className={`py-2 text-sm rounded transition-all ${spinCount === count && !customCount
                   ? 'bg-primary-600 text-white'
                   : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-              }`}
+                }`}
             >
               {count.toLocaleString()}
             </button>
@@ -130,28 +123,26 @@ export function SimulationPanel() {
         <div className="flex gap-2 mb-2">
           <button
             onClick={() => setMode('stack')}
-            className={`flex-1 py-2 text-sm rounded transition-all ${
-              mode === 'stack'
+            className={`flex-1 py-2 text-sm rounded transition-all ${mode === 'stack'
                 ? 'bg-green-600 text-white'
                 : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-            }`}
+              }`}
           >
             📊 堆疊
           </button>
           <button
             onClick={() => setMode('compare')}
-            className={`flex-1 py-2 text-sm rounded transition-all ${
-              mode === 'compare'
+            className={`flex-1 py-2 text-sm rounded transition-all ${mode === 'compare'
                 ? 'bg-blue-600 text-white'
                 : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
-            }`}
+              }`}
           >
             📈 比較
           </button>
         </div>
         <p className="text-xs text-surface-500">
-          {mode === 'stack' 
-            ? '💡 堆疊模式：新結果累加至現有數據，顯示總和' 
+          {mode === 'stack'
+            ? '💡 堆疊模式：新結果累加至現有數據，顯示總和'
             : '💡 比較模式：保留前次結果，方便對比不同配置'}
         </p>
       </div>
@@ -168,10 +159,9 @@ export function SimulationPanel() {
           </div>
           <div className="flex justify-between">
             <span className="text-surface-400">實際 RTP:</span>
-            <span className={`font-semibold ${
-              actualRTP > theoreticalRTP.totalRTP ? 'text-red-400' : 
-              actualRTP < theoreticalRTP.totalRTP * 0.9 ? 'text-yellow-400' : 'text-green-400'
-            }`}>
+            <span className={`font-semibold ${actualRTP > theoreticalRTP.totalRTP ? 'text-red-400' :
+                actualRTP < theoreticalRTP.totalRTP * 0.9 ? 'text-yellow-400' : 'text-green-400'
+              }`}>
               {actualRTP.toFixed(2)}%
             </span>
           </div>
@@ -181,7 +171,7 @@ export function SimulationPanel() {
             </div>
           )}
         </div>
-        <button 
+        <button
           onClick={clearResults}
           disabled={isRunning || results.length === 0}
           className="w-full mt-3 py-2 bg-surface-700 text-surface-300 text-sm rounded hover:bg-surface-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -207,7 +197,7 @@ export function SimulationPanel() {
             <span className="text-sm text-indigo-200 font-semibold">{progress}%</span>
           </div>
           <div className="h-2 bg-surface-700 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-indigo-500 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
@@ -217,4 +207,3 @@ export function SimulationPanel() {
     </div>
   );
 }
-

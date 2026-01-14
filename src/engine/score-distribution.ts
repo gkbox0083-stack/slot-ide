@@ -1,5 +1,5 @@
 /**
- * Score Distribution Estimation Module
+ * Score Distribution Estimation Module（V3 簡化版）
  * 
  * 蒙地卡羅抽樣估算符號配置下的分數分布
  * 用於：
@@ -23,7 +23,7 @@ export interface ScoreDistribution {
     stdDev: number;
     sampleSize: number;
     histogram: HistogramBucket[];
-    rawScores: number[];  // 用於 Outcome 覆蓋率計算
+    rawScores: number[];
 }
 
 /**
@@ -49,18 +49,13 @@ export interface OutcomeCoverage {
     outcomeName: string;
     minMultiplier: number;
     maxMultiplier: number;
-    matchCount: number;       // 落入此區間的盤面數
-    percentage: number;       // 百分比
-    status: CoverageStatus;   // 狀態
+    matchCount: number;
+    percentage: number;
+    status: CoverageStatus;
 }
 
 /**
- * 估算分數分布（蒙地卡羅抽樣）
- * 
- * @param symbols 符號定義列表
- * @param linesConfig 線路配置
- * @param boardConfig 盤面配置
- * @param sampleSize 抽樣次數（預設 1000）
+ * 估算分數分布（蒙地卡羅抽樣）V3 支援 Scatter 直接賦值
  */
 export function estimateScoreDistribution(
     symbols: SymbolDefinition[],
@@ -70,23 +65,19 @@ export function estimateScoreDistribution(
 ): ScoreDistribution {
     const scores: number[] = [];
 
-    // 蒙地卡羅抽樣
     for (let i = 0; i < sampleSize; i++) {
         const board = generateRandomBoard(symbols, boardConfig);
         const score = calculateBoardScore(board, symbols, linesConfig);
         scores.push(score);
     }
 
-    // 統計計算
     const min = Math.min(...scores);
     const max = Math.max(...scores);
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
-    // 標準差
     const variance = scores.reduce((sum, s) => sum + Math.pow(s - avg, 2), 0) / scores.length;
     const stdDev = Math.sqrt(variance);
 
-    // 建立直方圖（分 10 個區間）
     const histogram = buildHistogram(scores, min, max);
 
     return {
@@ -110,14 +101,12 @@ export function calculateOutcomeCoverage(
     return outcomes.map(outcome => {
         const { min, max } = outcome.multiplierRange;
 
-        // 計算落入此區間的分數數量
         const matchCount = distribution.rawScores.filter(
             score => score >= min && score <= max
         ).length;
 
         const percentage = (matchCount / distribution.sampleSize) * 100;
 
-        // 判斷狀態
         let status: CoverageStatus;
         if (percentage >= 5) {
             status = 'ok';
@@ -140,28 +129,27 @@ export function calculateOutcomeCoverage(
 }
 
 /**
- * P2-12 Phase 2: 實際 Pool RTP 計算結果
+ * 實際 Pool RTP 計算結果（V3 簡化版）
  */
 export interface ActualPoolRTP {
-    ngRTP: number;           // NG 實際 RTP (%)
-    fgRTPContribution: number; // FG 貢獻 (%)
-    totalRTP: number;        // 總 RTP (%)
+    lineRTP: number;          // 連線 RTP (%)
+    scatterRTP: number;       // Scatter RTP (%)
+    totalRTP: number;         // 總 RTP (%)
     outcomeDetails: {
         outcomeId: string;
         outcomeName: string;
-        phase: 'ng' | 'fg';
         weight: number;
-        probability: number;   // 權重機率 (%)
-        avgScore: number;      // Pool 內盤面的平均分數
-        contribution: number;  // 對 RTP 的貢獻 (%)
+        probability: number;
+        avgScore: number;
+        contribution: number;
     }[];
 }
 
 /**
- * P2-12 Phase 2: 從 Pool 內容計算實際 RTP
+ * 從 Pool 內容計算實際 RTP（V3 簡化版）
  */
 export function calculateActualPoolRTP(
-    _pools: { outcomeId: string; outcomeName: string; generated: number }[], // Reserved for future pool validation
+    _pools: { outcomeId: string; outcomeName: string; generated: number }[],
     outcomes: Outcome[],
     getPoolBoards: (outcomeId: string) => Board[],
     symbols: SymbolDefinition[],
@@ -169,54 +157,50 @@ export function calculateActualPoolRTP(
 ): ActualPoolRTP {
     const outcomeDetails: ActualPoolRTP['outcomeDetails'] = [];
 
-    const ngOutcomes = outcomes.filter(o => o.phase === 'ng');
-    const fgOutcomes = outcomes.filter(o => o.phase === 'fg');
+    const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
 
-    const ngTotalWeight = ngOutcomes.reduce((sum, o) => sum + o.weight, 0);
-    const fgTotalWeight = fgOutcomes.reduce((sum, o) => sum + o.weight, 0);
-
-    let ngRTP = 0;
-    let fgRTPContribution = 0;
+    let lineRTP = 0;
+    let scatterRTP = 0;
 
     for (const outcome of outcomes) {
         const boards = getPoolBoards(outcome.id);
 
         let avgScore: number;
+        let avgScatterScore: number = 0;
+
         if (boards.length > 0) {
-            const scores = boards.map(board =>
-                calculateBoardScore(board, symbols, linesConfig)
-            );
-            avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            const results = boards.map(board => {
+                const lineScore = calculateLineScore(board, symbols, linesConfig);
+                const scatterScore = calculateScatterScore(board, symbols);
+                return { lineScore, scatterScore };
+            });
+            avgScore = results.reduce((a, b) => a + b.lineScore, 0) / results.length;
+            avgScatterScore = results.reduce((a, b) => a + b.scatterScore, 0) / results.length;
         } else {
             avgScore = (outcome.multiplierRange.min + outcome.multiplierRange.max) / 2;
         }
 
-        const isNG = outcome.phase === 'ng';
-        const totalWeight = isNG ? ngTotalWeight : fgTotalWeight;
         const probability = totalWeight > 0 ? (outcome.weight / totalWeight) * 100 : 0;
-        const contribution = (probability / 100) * avgScore * 100;
+        const lineContribution = (probability / 100) * avgScore * 100;
+        const scatterContribution = (probability / 100) * avgScatterScore * 100;
 
-        if (isNG) {
-            ngRTP += contribution;
-        } else {
-            fgRTPContribution += contribution;
-        }
+        lineRTP += lineContribution;
+        scatterRTP += scatterContribution;
 
         outcomeDetails.push({
             outcomeId: outcome.id,
             outcomeName: outcome.name,
-            phase: outcome.phase,
             weight: outcome.weight,
             probability,
-            avgScore,
-            contribution,
+            avgScore: avgScore + avgScatterScore,
+            contribution: lineContribution + scatterContribution,
         });
     }
 
     return {
-        ngRTP,
-        fgRTPContribution,
-        totalRTP: ngRTP + fgRTPContribution,
+        lineRTP,
+        scatterRTP,
+        totalRTP: lineRTP + scatterRTP,
         outcomeDetails,
     };
 }
@@ -234,7 +218,6 @@ function generateRandomBoard(
     for (let col = 0; col < cols; col++) {
         const reel: SymbolId[] = [];
         for (let row = 0; row < rows; row++) {
-            // 均勻分布抽取
             const randomIndex = Math.floor(Math.random() * symbols.length);
             reel.push(symbols[randomIndex].id);
         }
@@ -245,9 +228,20 @@ function generateRandomBoard(
 }
 
 /**
- * 計算盤面分數（所有線的總分）
+ * 計算盤面分數（連線 + Scatter）
  */
 function calculateBoardScore(
+    board: Board,
+    symbols: SymbolDefinition[],
+    linesConfig: LinesConfig
+): number {
+    return calculateLineScore(board, symbols, linesConfig) + calculateScatterScore(board, symbols);
+}
+
+/**
+ * 計算連線分數
+ */
+function calculateLineScore(
     board: Board,
     symbols: SymbolDefinition[],
     linesConfig: LinesConfig
@@ -268,6 +262,31 @@ function calculateBoardScore(
 }
 
 /**
+ * 計算 Scatter 直接賦值分數（V3 新增）
+ */
+function calculateScatterScore(board: Board, symbols: SymbolDefinition[]): number {
+    const scatterSymbol = symbols.find(s => s.scatterPayoutConfig);
+    if (!scatterSymbol?.scatterPayoutConfig) return 0;
+
+    const config = scatterSymbol.scatterPayoutConfig;
+    let count = 0;
+
+    for (const reel of board.reels) {
+        for (const id of reel) {
+            if (id === scatterSymbol.id) {
+                count++;
+            }
+        }
+    }
+
+    if (count >= config.minCount) {
+        return config.payoutByCount[count] ?? 0;
+    }
+
+    return 0;
+}
+
+/**
  * 計算一條線的連續符號數（含 Wild 替代）
  */
 function calculateLineMatch(
@@ -277,7 +296,6 @@ function calculateLineMatch(
 ): { symbol: SymbolId; count: number } | null {
     if (positions.length === 0) return null;
 
-    // 過濾超出範圍的位置
     const validPositions = positions.filter(
         ([col, row]) => col < board.cols && row < board.rows
     );
@@ -286,12 +304,10 @@ function calculateLineMatch(
 
     const getSymbolDef = (id: SymbolId) => symbols.find(s => s.id === id);
 
-    // 取得線上符號
     const lineSymbols: SymbolId[] = validPositions.map(
         ([col, row]) => board.reels[col][row]
     );
 
-    // 找目標符號（第一個非 Wild、非 Scatter）
     let targetId: SymbolId | null = null;
     let targetDef = null;
 
@@ -306,7 +322,6 @@ function calculateLineMatch(
 
     if (!targetId || !targetDef) return null;
 
-    // 從左到右計算連續數
     let count = 0;
     for (const currentId of lineSymbols) {
         const currentDef = getSymbolDef(currentId);
@@ -343,7 +358,6 @@ function buildHistogram(
     max: number,
     bucketCount: number = 10
 ): HistogramBucket[] {
-    // 處理 min === max 的情況
     if (min === max) {
         return [{
             rangeStart: min,

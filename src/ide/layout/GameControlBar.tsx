@@ -1,12 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
-import { useFreeSpinStore } from '../../store/useFreeSpinStore.js';
 import { useSimulationStore } from '../../store/useSimulationStore.js';
 import { spinExecutor } from '../../engine/index.js';
 import type { SimulationStats } from '../../engine/rtp-calculator.js';
 
 /**
- * 底部遊戲控制欄（glass-morphism 效果）
+ * 底部遊戲控制欄（V3 簡化版）
  * 包含：Balance、Win、Bet、Spin、SIM、AUTO
  */
 export function GameControlBar() {
@@ -26,29 +25,23 @@ export function GameControlBar() {
         setCurrentSpinPacket,
     } = useGameConfigStore();
 
-    const freeSpinState = useFreeSpinStore();
-    const isInFreeSpin = freeSpinState.mode === 'free';
-
     const { addResult, spinCount } = useSimulationStore();
 
-    // 累積 spin 結果到 simulation store
-    const accumulateSpinResult = useCallback((winAmount: number, isFreeSpin: boolean) => {
+    // 累積 spin 結果到 simulation store（V3 簡化版）
+    const accumulateSpinResult = useCallback((winAmount: number, scatterWin: number = 0) => {
         const stats: SimulationStats = {
             totalSpins: 1,
-            ngSpins: isFreeSpin ? 0 : 1,
-            fgSpins: isFreeSpin ? 1 : 0,
-            totalBet: isFreeSpin ? 0 : baseBet,
+            totalBet: baseBet,
             totalWin: winAmount,
-            ngWin: isFreeSpin ? 0 : winAmount,
-            fgWin: isFreeSpin ? winAmount : 0,
-            fgTriggerCount: 0,
+            lineWin: winAmount - scatterWin,
+            scatterWin: scatterWin,
             hitCount: winAmount > 0 ? 1 : 0,
             maxWin: winAmount / baseBet,
         };
         addResult(stats);
     }, [baseBet, addResult]);
 
-    // 單次 Spin
+    // 單次 Spin（V3 簡化版：移除 Free Spin 處理）
     const handleSpin = useCallback(async () => {
         if (isSpinning) return;
 
@@ -66,19 +59,13 @@ export function GameControlBar() {
         setWin(0);
 
         try {
-            if (!isInFreeSpin) {
-                const currentBalance = useGameConfigStore.getState().balance;
-                setBalance(currentBalance - baseBet);
-            }
+            const currentBalance = useGameConfigStore.getState().balance;
+            setBalance(currentBalance - baseBet);
 
-            const phase = isInFreeSpin ? 'free' : 'base';
-            const multiplier = isInFreeSpin ? (freeSpinState.currentMultiplier || 1) : 1;
-
+            // V3: 移除 phase 和 multiplier 參數
             const packet = spinExecutor.spin(
                 visualConfig,
                 Object.keys(assets).length > 0 ? assets : undefined,
-                phase,
-                multiplier,
                 baseBet
             );
 
@@ -87,66 +74,15 @@ export function GameControlBar() {
             await new Promise(resolve => setTimeout(resolve, visualConfig.animation.spinDuration + 500));
 
             const winAmount = packet.meta?.win || 0;
+            const scatterPayout = packet.meta?.scatterPayout || 0;
+
             if (winAmount > 0) {
                 const currentBalance = useGameConfigStore.getState().balance;
                 setBalance(currentBalance + winAmount);
                 setWin(winAmount);
             }
 
-            // === P2-09/P2-10 Free Spin 觸發處理 ===
-            // P2-10: 使用 scatterConfig 作為唯一真相來源
-
-            // 取得 Scatter 配置
-            // 1. 觸發 Free Spin（Base Game → Free Game）
-            const symbolsState = useGameConfigStore.getState().symbols;
-            const triggerSymbol = symbolsState.find(s => s.fsTriggerConfig?.enabled);
-            const triggerConfig = triggerSymbol?.fsTriggerConfig;
-
-            if (packet.meta?.triggeredFreeSpin && !isInFreeSpin && triggerConfig) {
-                const count = packet.meta.scatterCount || 0;
-                freeSpinState.triggerFreeSpin(count, {
-                    enabled: true,
-                    triggerCount: triggerConfig.triggerCount,
-                    freeSpinCount: triggerConfig.freeSpinCount,
-                    enableRetrigger: triggerConfig.enableRetrigger,
-                    retriggerSpinCount: triggerConfig.retriggerSpinCount ?? 5,
-                    enableMultiplier: triggerConfig.enableMultiplier,
-                    multiplierValue: triggerConfig.multiplierValue,
-                });
-            }
-
-            // 2. Free Spin 模式下的處理
-            if (isInFreeSpin && triggerConfig) {
-                // 2a. 處理 Retrigger（Free Game 中再次觸發）
-                if (packet.meta?.triggeredFreeSpin && triggerConfig.enableRetrigger) {
-                    freeSpinState.retrigger(triggerConfig.retriggerSpinCount ?? 5);
-                }
-
-                // 2b. 累積獎金
-                freeSpinState.addWin(winAmount);
-
-                // 2c. 記錄歷史
-                freeSpinState.addHistory({
-                    spinIndex: freeSpinState.totalSpins - freeSpinState.remainingSpins + 1,
-                    board: packet.board,
-                    win: winAmount,
-                    multipliedWin: winAmount,
-                    isRetrigger: packet.meta?.triggeredFreeSpin || false,
-                });
-
-                // 2d. 消耗次數
-                freeSpinState.consumeSpin();
-
-                // 2e. 檢查是否結束（在 consumeSpin 後檢查）
-                const currentRemaining = useFreeSpinStore.getState().remainingSpins;
-                if (currentRemaining <= 0) {
-                    freeSpinState.endFreeSpin();
-                }
-            }
-
-            // === End P2-09/P2-10 ===
-
-            accumulateSpinResult(winAmount, isInFreeSpin);
+            accumulateSpinResult(winAmount, scatterPayout);
 
         } catch (error) {
             console.error('Spin error:', error);
@@ -154,7 +90,7 @@ export function GameControlBar() {
         } finally {
             setIsSpinning(false);
         }
-    }, [balance, baseBet, isInFreeSpin, isPoolsBuilt, visualConfig, assets, freeSpinState, setBalance, setCurrentSpinPacket, isSpinning, accumulateSpinResult, setWin]);
+    }, [balance, baseBet, isPoolsBuilt, visualConfig, assets, setBalance, setCurrentSpinPacket, isSpinning, accumulateSpinResult]);
 
     // Auto Spin
     const handleAutoSpin = useCallback(async () => {
@@ -184,7 +120,7 @@ export function GameControlBar() {
         }
     }, [isAutoSpinning, handleSpin, baseBet, isPoolsBuilt]);
 
-    // 快速模擬
+    // 快速模擬（V3 簡化版）
     const [isSimulating, setIsSimulating] = useState(false);
 
     const handleSimulation = useCallback(async () => {
@@ -200,73 +136,34 @@ export function GameControlBar() {
         const count = spinCount;
         const batchStats: SimulationStats = {
             totalSpins: 0,
-            ngSpins: 0,
-            fgSpins: 0,
             totalBet: 0,
             totalWin: 0,
-            ngWin: 0,
-            fgWin: 0,
-            fgTriggerCount: 0,
+            lineWin: 0,
+            scatterWin: 0,
             hitCount: 0,
             maxWin: 0,
         };
 
         try {
-            const symbolsState = useGameConfigStore.getState().symbols;
-            const triggerSymbol = symbolsState.find(s => s.fsTriggerConfig?.enabled);
-            const triggerConfig = triggerSymbol?.fsTriggerConfig;
             const assetsData = Object.keys(assets).length > 0 ? assets : undefined;
 
             for (let i = 0; i < count; i++) {
-                // 1. 執行基礎旋轉 (NG)
-                const packet = spinExecutor.spin(visualConfig, assetsData, 'base', 1, baseBet);
+                // V3: 簡化版 spin
+                const packet = spinExecutor.spin(visualConfig, assetsData, baseBet);
                 const winAmount = packet.meta?.win || 0;
+                const scatterPayout = packet.meta?.scatterPayout || 0;
 
                 batchStats.totalSpins += 1;
-                batchStats.ngSpins += 1;
                 batchStats.totalBet += baseBet;
                 batchStats.totalWin += winAmount;
-                batchStats.ngWin += winAmount;
+                batchStats.lineWin += (winAmount - scatterPayout);
+                batchStats.scatterWin += scatterPayout;
                 if (winAmount > 0) {
                     batchStats.hitCount += 1;
                 }
-
-                // 2. 處理 Free Spin 觸發
-                if (packet.meta?.triggeredFreeSpin && triggerConfig) {
-                    batchStats.fgTriggerCount += 1;
-
-                    let fgRemaining = triggerConfig.freeSpinCount;
-                    const fgMultiplier = triggerConfig.enableMultiplier ? triggerConfig.multiplierValue : 1;
-
-                    // FG 迴圈
-                    while (fgRemaining > 0) {
-                        const fgPacket = spinExecutor.spin(visualConfig, assetsData, 'free', fgMultiplier, baseBet);
-                        const fgWin = fgPacket.meta?.win || 0;
-
-                        batchStats.totalSpins += 1;
-                        batchStats.fgSpins += 1;
-                        batchStats.totalWin += fgWin;
-                        batchStats.fgWin += fgWin;
-                        if (fgWin > 0) {
-                            batchStats.hitCount += 1;
-                        }
-
-                        // 處理 Retrigger
-                        if (fgPacket.meta?.triggeredFreeSpin && triggerConfig.enableRetrigger) {
-                            fgRemaining += (triggerConfig.retriggerSpinCount ?? 5);
-                        }
-
-                        fgRemaining--;
-
-                        // 防護：避免過度遞迴
-                        if (batchStats.fgSpins > count * 100) break;
-                    }
-                }
-
-                // 更新單次最大獲勝倍率 (以 NG 為基準)
                 batchStats.maxWin = Math.max(batchStats.maxWin, winAmount / baseBet);
 
-                // 每 50 次旋轉釋放一次主執行緒，避免 UI 凍結
+                // 每 50 次旋轉釋放一次主執行緒
                 if (i % 50 === 0) {
                     await new Promise(r => setTimeout(r, 0));
                 }
@@ -441,18 +338,6 @@ export function GameControlBar() {
                         <span className="text-lg">{isAutoSpinning ? '⏹️' : '🔁'}</span>
                     </button>
                 </div>
-
-                {/* Free Spin 提示 */}
-                {isInFreeSpin && (
-                    <>
-                        <div className="w-px h-8 bg-surface-700/50" />
-                        <div className="flex items-center gap-2 px-3 py-1 bg-purple-900/50 border border-purple-500/50 rounded-full">
-                            <span className="text-purple-300 text-xs font-semibold">
-                                🎰 FS: {freeSpinState.remainingSpins}/{freeSpinState.totalSpins}
-                            </span>
-                        </div>
-                    </>
-                )}
             </div>
         </div>
     );

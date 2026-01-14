@@ -4,30 +4,24 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { TextInput, NumberInput } from '../../components/form/index.js';
 import { useGameConfigStore } from '../../store/index.js';
 import { outcomeSchema, type OutcomeFormData } from '../schemas/index.js';
-import type { Outcome, GamePhase } from '../../types/outcome.js';
+import type { Outcome } from '../../types/outcome.js';
 
 /**
- * Step 3: 賠率設定（NG/FG 分離版）
+ * Step 3: 賠率設定（V3 簡化版）
  */
 export function OutcomeStep() {
-  const { outcomeConfig, addOutcome, updateOutcome, removeOutcome } = useGameConfigStore();
+  const { outcomes, addOutcome, updateOutcome, removeOutcome } = useGameConfigStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activePhase, setActivePhase] = useState<GamePhase>('ng');
-
-  // 取得當前階段的 Outcomes
-  const currentOutcomes = activePhase === 'ng' 
-    ? outcomeConfig.ngOutcomes 
-    : outcomeConfig.fgOutcomes;
 
   // 計算機率
   const probabilities = useMemo(() => {
-    const totalWeight = currentOutcomes.reduce((sum: number, o: Outcome) => sum + o.weight, 0);
-    return currentOutcomes.map((outcome: Outcome) => ({
+    const totalWeight = outcomes.reduce((sum: number, o: Outcome) => sum + o.weight, 0);
+    return outcomes.map((outcome: Outcome) => ({
       ...outcome,
       probability: totalWeight > 0 ? (outcome.weight / totalWeight) * 100 : 0,
     }));
-  }, [currentOutcomes]);
+  }, [outcomes]);
 
   // 新增表單
   const addForm = useForm<Omit<OutcomeFormData, 'id'>>({
@@ -40,7 +34,7 @@ export function OutcomeStep() {
   });
 
   const handleAdd = (data: Omit<OutcomeFormData, 'id'>) => {
-    addOutcome({ ...data, phase: activePhase });
+    addOutcome(data);
     addForm.reset();
     setShowAddForm(false);
   };
@@ -54,7 +48,7 @@ export function OutcomeStep() {
   };
 
   const handleDelete = (id: string) => {
-    if (currentOutcomes.length <= 1) {
+    if (outcomes.length <= 1) {
       alert('至少需要保留 1 個 Outcome');
       return;
     }
@@ -71,7 +65,7 @@ export function OutcomeStep() {
             賠率設定
           </h2>
           <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">
-            定義各種獎項的倍率區間與出現機率（NG/FG 獨立設定）
+            定義各種獎項的倍率區間與出現機率
           </p>
         </div>
         <button
@@ -80,32 +74,6 @@ export function OutcomeStep() {
           className="btn-primary"
         >
           + 新增 Outcome
-        </button>
-      </div>
-
-      {/* NG/FG 切換器 */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setActivePhase('ng')}
-          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
-            activePhase === 'ng'
-              ? 'bg-primary-600 text-white'
-              : 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
-          }`}
-        >
-          🎰 Base Game (NG)
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePhase('fg')}
-          className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
-            activePhase === 'fg'
-              ? 'bg-accent-success text-white'
-              : 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
-          }`}
-        >
-          🎁 Free Game (FG)
         </button>
       </div>
 
@@ -136,7 +104,7 @@ export function OutcomeStep() {
                   <button
                     type="button"
                     onClick={() => handleDelete(outcome.id)}
-                    disabled={currentOutcomes.length <= 1}
+                    disabled={outcomes.length <= 1}
                     className="btn-danger text-sm py-1 px-2"
                   >
                     刪除
@@ -213,7 +181,7 @@ export function OutcomeStep() {
       {/* 機率分佈圖 */}
       <div className="panel p-4">
         <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-3">
-          機率分佈預覽 ({activePhase === 'ng' ? 'Base Game' : 'Free Game'})
+          機率分佈預覽
         </h3>
         <div className="space-y-2">
           {probabilities.map((outcome) => (
@@ -223,9 +191,7 @@ export function OutcomeStep() {
               </span>
               <div className="flex-1 h-5 bg-surface-200 dark:bg-surface-700 rounded overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-300 ${
-                    activePhase === 'ng' ? 'bg-primary-500' : 'bg-accent-success'
-                  }`}
+                  className="h-full transition-all duration-300 bg-primary-500"
                   style={{ width: `${Math.min(outcome.probability * 2, 100)}%` }}
                 />
               </div>
@@ -242,7 +208,7 @@ export function OutcomeStep() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="panel p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-4">
-              新增 Outcome ({activePhase === 'ng' ? 'Base Game' : 'Free Game'})
+              新增 Outcome
             </h3>
             <form onSubmit={addForm.handleSubmit(handleAdd)} className="space-y-4">
               <TextInput

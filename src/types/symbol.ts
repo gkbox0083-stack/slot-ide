@@ -19,31 +19,47 @@ export interface WildConfig {
 }
 
 /**
- * Free Spin 觸發設定 (V2 通用版)
+ * Scatter 直接賦值設定 (Simplified V3)
+ * 取代原本的 FreeSpinTriggerConfig，Scatter 現在直接給分而非觸發 FS
  */
-export interface FreeSpinTriggerConfig {
-  enabled: boolean;            // 是否啟用此符號的 FS 觸發
-  triggerCount: number;        // 觸發所需數量 (預設 3, 支援 1-6)
-  freeSpinCount: number;       // 給予的 Free Spin 次數
-  enableRetrigger: boolean;    // 是否支援 Retrigger
-  retriggerSpinCount: number;  // Retrigger 額外次數 (預設 5)
-  enableMultiplier: boolean;   // 是否啟用 Multiplier
-  multiplierValue: number;     // Multiplier 倍率 (預設 2)
+export interface ScatterPayoutConfig {
+  minCount: number;          // 最少需要幾個 (預設 3)
+  payoutByCount: {           // 根據數量直接給分 (倍率)
+    3?: number;              // 例如: 25 (代表 25x bet)
+    4?: number;              // 例如: 50
+    5?: number;              // 例如: 100
+    6?: number;              // 支援 5x4 盤面
+    [key: number]: number | undefined;
+  };
 }
 
 /**
- * Scatter 設定 (相容性保留，建議改用 fsTriggerConfig)
+ * @deprecated 請改用 ScatterPayoutConfig
+ * 保留向下相容，將在未來版本移除
+ */
+export interface FreeSpinTriggerConfig {
+  enabled: boolean;
+  triggerCount: number;
+  freeSpinCount: number;
+  enableRetrigger: boolean;
+  retriggerSpinCount: number;
+  enableMultiplier: boolean;
+  multiplierValue: number;
+}
+
+/**
+ * @deprecated 請改用 ScatterPayoutConfig
  */
 export interface ScatterConfig extends Omit<FreeSpinTriggerConfig, 'enabled'> { }
 
 /**
- * Symbol 定義（V2 擴展版）
+ * Symbol 定義（V3 簡化版）
  * 包含符號種類、分數、出現機率
  */
 export interface SymbolDefinition {
   id: SymbolId;
   name: string;
-  type: SymbolType;            // 新增：符號類型
+  type: SymbolType;            // 符號類型
   category: SymbolCategory;    // 僅 normal 類型有效
   payouts: {
     match3: number;  // 3 連線分數
@@ -59,6 +75,10 @@ export interface SymbolDefinition {
   fgWeight: number;
   // 特殊符號設定
   wildConfig?: WildConfig;     // 僅 wild 類型有效
-  scatterConfig?: ScatterConfig; // 僅 scatter 類型有效 (已棄用, 建議改用 fsTriggerConfig)
-  fsTriggerConfig?: FreeSpinTriggerConfig; // 通用 Free Spin 觸發設定
+  /** Scatter 直接賦值設定 (V3) */
+  scatterPayoutConfig?: ScatterPayoutConfig;
+  /** @deprecated 請改用 scatterPayoutConfig */
+  scatterConfig?: ScatterConfig;
+  /** @deprecated 請改用 scatterPayoutConfig */
+  fsTriggerConfig?: FreeSpinTriggerConfig;
 }

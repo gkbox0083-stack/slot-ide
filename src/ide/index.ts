@@ -11,7 +11,7 @@ export { PoolPanel } from './panels/PoolPanel.js';
 export { BettingPanel } from './panels/BettingPanel.js';
 export { SimulationPanel } from './panels/SimulationPanel.js';
 export { HistoryPanel } from './panels/HistoryPanel.js';
-export { FreeSpinPanel } from './panels/FreeSpinPanel.js';
+
 
 // V2 三欄式佈局
 export { IDELayoutV2 } from './layout/IDELayoutV2.js';
