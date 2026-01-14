@@ -456,7 +456,7 @@ function ProbabilityDistribution({ outcomes }: { outcomes: Outcome[] }) {
       <div className="flex justify-between items-center mb-2">
         <h5 className="text-xs font-semibold text-surface-400">機率分佈</h5>
         <span className="text-xs text-surface-300">
-          理論 RTP: <span className="text-yellow-400 font-mono">{(theoreticalRTP * 100).toFixed(2)}%</span> (估算值)
+          理論 RTP: <span className="text-yellow-400 font-mono">{theoreticalRTP.toFixed(2)}%</span> (估算值)
         </span>
       </div>
       <div className="space-y-1.5 max-h-40 overflow-y-auto">

@@ -161,7 +161,7 @@ export interface ActualPoolRTP {
  * P2-12 Phase 2: 從 Pool 內容計算實際 RTP
  */
 export function calculateActualPoolRTP(
-    _pools: { outcomeId: string; outcomeName: string; generated: number }[],
+    _pools: { outcomeId: string; outcomeName: string; generated: number }[], // Reserved for future pool validation
     outcomes: Outcome[],
     getPoolBoards: (outcomeId: string) => Board[],
     symbols: SymbolDefinition[],

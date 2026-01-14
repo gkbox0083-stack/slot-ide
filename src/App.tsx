@@ -1,11 +1,14 @@
 import { IDEProvider } from './store/index.jsx';
 import { IDELayoutV2 } from './ide/index.js';
+import { ErrorBoundary } from './components/ErrorBoundary.js';
 
 function App() {
   return (
-    <IDEProvider>
-      <IDELayoutV2 />
-    </IDEProvider>
+    <ErrorBoundary>
+      <IDEProvider>
+        <IDELayoutV2 />
+      </IDEProvider>
+    </ErrorBoundary>
   );
 }
 

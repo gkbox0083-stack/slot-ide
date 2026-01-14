@@ -37,7 +37,7 @@ export const useSimulationStore = create<SimulationStoreState & SimulationStoreA
     
     setMode: (mode) => set({ mode }),
     
-    startSimulation: (_count) => {
+    startSimulation: () => {
       const { mode, results } = get();
       
       if (mode === 'compare') {

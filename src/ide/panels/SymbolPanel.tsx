@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useGameConfigStore, defaultSymbols } from '../../store/useGameConfigStore.js';
 import type {
   SymbolDefinition,
@@ -130,10 +130,12 @@ interface SymbolItemProps {
 function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: SymbolItemProps) {
   const [editedSymbol, setEditedSymbol] = useState(symbol);
 
-  // 更新 editedSymbol 當 symbol prop 變化時
-  if (!isEditing && editedSymbol.id !== symbol.id) {
-    setEditedSymbol(symbol);
-  }
+  // 使用 useEffect 同步 props 到 state（避免在 render 中直接呼叫 setState）
+  React.useEffect(() => {
+    if (!isEditing) {
+      setEditedSymbol(symbol);
+    }
+  }, [symbol, isEditing]);
 
   if (!isEditing) {
     return (

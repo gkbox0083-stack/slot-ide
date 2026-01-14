@@ -114,10 +114,10 @@ export function IDELayoutV2() {
               availableSymbols={availableSymbolIds}
               symbolWeights={symbolWeights}
               onSpinComplete={() => {
-                console.log('Spin complete');
+                // Spin complete callback
               }}
               onSkip={() => {
-                console.log('Spin skipped');
+                // Spin skipped callback
               }}
             />
           </div>

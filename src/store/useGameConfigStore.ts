@@ -103,9 +103,6 @@ export interface GameConfigActions {
 /**
  * 預設符號列表（V2 擴展）
  */
-/**
- * 預設符號列表（V2 擴展）
- */
 export const defaultSymbols: SymbolDefinition[] = [
   // 高分符號
   { id: 'H1', name: '皇冠', type: 'normal', category: 'high', payouts: { match3: 50, match4: 100, match5: 200 }, appearanceWeight: 10, ngWeight: 10, fgWeight: 10 },
@@ -260,7 +257,7 @@ const initialState: GameConfigState = {
 /**
  * 生成唯一 ID
  */
-const generateId = () => `outcome_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const generateId = () => `outcome_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
 /**
  * 遊戲配置 Store

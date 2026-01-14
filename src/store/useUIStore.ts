@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 /**
+ * 更新 DOM 的 dark mode class
+ */
+function updateDarkModeClass(isDark: boolean): void {
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+/**
  * UI 狀態
  */
 export interface UIState {
@@ -68,20 +79,11 @@ export const useUIStore = create<UIState & UIActions>()(
       toggleDarkMode: () => {
         const newDarkMode = !get().isDarkMode;
         set({ isDarkMode: newDarkMode });
-        // 更新 DOM class
-        if (newDarkMode) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        updateDarkModeClass(newDarkMode);
       },
       setDarkMode: (isDark) => {
         set({ isDarkMode: isDark });
-        if (isDark) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        updateDarkModeClass(isDark);
       },
 
       // 側邊欄
@@ -106,7 +108,7 @@ export const useUIStore = create<UIState & UIActions>()(
       onRehydrateStorage: () => (state) => {
         // 頁面載入時同步 dark mode class
         if (state?.isDarkMode) {
-          document.documentElement.classList.add('dark');
+          updateDarkModeClass(true);
         }
       },
     }

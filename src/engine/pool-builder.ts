@@ -3,7 +3,12 @@ import type { SymbolId } from '../types/board.js';
 import type { OutcomeManager } from './outcome-manager.js';
 import type { SymbolManager } from './symbol-manager.js';
 import type { LinesManager } from './lines-manager.js';
+import type { FreeSpinTriggerConfig } from '../types/symbol.js';
 import { isWildSymbol, isScatterSymbol, canWildReplace } from './symbol-manager.js';
+import {
+  calculateFSTriggerProbability,
+  calculateExpectedFreeSpins,
+} from './rtp-calculator.js';
 
 /**
  * Pool 盤池結構
@@ -95,8 +100,8 @@ export class PoolBuilder {
         // 1. 生成隨機盤面
         const board = this.generateRandomBoard();
 
-        // 2. 計算盤面分數
-        const score = this.calculateBoardScore(board);
+        // 2. 計算盤面分數（根據 Outcome 的 phase 決定是否計算 FS 預期價值）
+        const score = this.calculateBoardScore(board, outcome.phase);
 
         // 3. 檢查分數是否在 Outcome 倍率區間
         if (score >= outcome.multiplierRange.min && score <= outcome.multiplierRange.max) {
@@ -168,13 +173,17 @@ export class PoolBuilder {
   }
 
   /**
-   * 計算盤面分數（所有中獎線的總分）
+   * 計算盤面分數（所有中獎線的總分 + FS 預期價值）
    * 遍歷所有線，累加所有中獎線的 payout
+   * 如果是 NG 盤面且觸發 FS，加上 Free Spin 的預期價值
+   * @param board 盤面
+   * @param phase 遊戲階段（ng 或 fg）
    */
-  private calculateBoardScore(board: Board): number {
+  private calculateBoardScore(board: Board, phase: 'ng' | 'fg' = 'ng'): number {
     const patterns = this.linesManager.getAllPatterns();
     let totalScore = 0;
 
+    // 1. 計算連線得分
     for (const pattern of patterns) {
       // 計算這條線的連續符號數
       const lineResult = this.calculateLineMatch(board, pattern.positions);
@@ -186,7 +195,108 @@ export class PoolBuilder {
       }
     }
 
+    // 2. 僅 NG 盤面計算 Free Spin 觸發價值
+    if (phase === 'ng') {
+      totalScore += this.calculateFSExpectedValue(board);
+    }
+
     return totalScore;
+  }
+
+  /**
+   * 計算 Free Spin 預期價值
+   * 與 rtp-calculator.ts 使用相同的計算邏輯，確保單一真相來源
+   */
+  private calculateFSExpectedValue(board: Board): number {
+    const symbols = this.symbolManager.getAll();
+    const triggerSymbol = symbols.find(s => s.fsTriggerConfig?.enabled);
+
+    if (!triggerSymbol?.fsTriggerConfig) {
+      return 0;
+    }
+
+    const config = triggerSymbol.fsTriggerConfig;
+    const count = this.countSymbol(board, triggerSymbol.id);
+
+    if (count < config.triggerCount) {
+      return 0;
+    }
+
+    // 從 FG Outcomes 計算平均倍率
+    const avgFgMultiplier = this.getAvgFgMultiplier();
+
+    // 計算 Multiplier
+    const multiplier = config.enableMultiplier ? config.multiplierValue : 1;
+
+    // 計算預期 Spin 次數（與 rtp-calculator.ts 相同邏輯）
+    const expectedSpins = this.calculateExpectedSpinsFromConfig(config);
+
+    return expectedSpins * avgFgMultiplier * multiplier;
+  }
+
+  /**
+   * 計算預期 Spin 次數（含 Retrigger）
+   * 使用與 rtp-calculator.ts 相同的二項分布計算
+   */
+  private calculateExpectedSpinsFromConfig(config: FreeSpinTriggerConfig): number {
+    if (!config.enableRetrigger) {
+      return config.freeSpinCount;
+    }
+
+    // 計算 FG 中的 Retrigger 機率（使用 rtp-calculator.ts 的函式）
+    const retriggerProbability = calculateFSTriggerProbability(
+      this.symbolManager.getAll(),
+      this.boardConfig,
+      'fg'
+    );
+
+    // 使用 rtp-calculator.ts 的函式計算預期次數
+    return calculateExpectedFreeSpins(
+      config.freeSpinCount,
+      retriggerProbability,
+      config.enableRetrigger
+    );
+  }
+
+  /**
+   * 計算盤面上特定符號的數量
+   * ⚠️ 假設：Scatter 觸發不受位置限制（全盤面任意位置皆可）
+   *    如需位置約束，需擴展 fsTriggerConfig 增加 validReels 屬性
+   */
+  private countSymbol(board: Board, symbolId: SymbolId): number {
+    let count = 0;
+    for (const reel of board.reels) {
+      for (const id of reel) {
+        if (id === symbolId) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
+   * 取得 FG 平均倍率
+   * 從 FG Outcomes 計算加權平均，作為 Free Spin 預期價值的基礎
+   */
+  private getAvgFgMultiplier(): number {
+    const fgOutcomes = this.outcomeManager.getAll().filter(o => o.phase === 'fg');
+
+    if (fgOutcomes.length === 0) {
+      return 5; // 預設值，當沒有設定 FG Outcomes 時使用
+    }
+
+    // 計算 FG Outcomes 的加權平均倍率
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    for (const outcome of fgOutcomes) {
+      const avgMultiplier = (outcome.multiplierRange.min + outcome.multiplierRange.max) / 2;
+      totalWeight += outcome.weight;
+      weightedSum += avgMultiplier * outcome.weight;
+    }
+
+    return totalWeight > 0 ? weightedSum / totalWeight : 5;
   }
 
   /**
