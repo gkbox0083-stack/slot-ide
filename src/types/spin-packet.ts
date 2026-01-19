@@ -47,4 +47,6 @@ export interface SpinPacket {
   visual: VisualConfig;          // 動畫參數
   assets?: AssetsPatch;          // 素材覆蓋
   meta?: SettlementMeta;         // 結算資訊
+  isDemo?: boolean;              // 展示模式：true 時不觸發 spin 動畫
 }
+

@@ -276,7 +276,7 @@ export function GameControlBar() {
                 {/* Spin Button */}
                 <button
                     onClick={handleSpin}
-                    disabled={isSpinning || isAutoSpinning || balance < baseBet || !isPoolsBuilt}
+                    disabled={isSpinning || isAutoSpinning || balance < baseBet}
                     className="relative group focus:outline-none"
                     title={!isPoolsBuilt ? '請先建立 Pool' : undefined}
                 >
@@ -307,7 +307,7 @@ export function GameControlBar() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleSimulation}
-                        disabled={isSimulating || isSpinning || isAutoSpinning || !isPoolsBuilt}
+                        disabled={isSimulating || isSpinning || isAutoSpinning}
                         className={`
               flex items-center justify-center w-10 h-10 rounded-full
               border transition-all

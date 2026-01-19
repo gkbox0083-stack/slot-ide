@@ -121,7 +121,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
 
       // 依序停輪
       for (let reelIndex = 0; reelIndex < 5; reelIndex++) {
-        const delay = visual.animation.reelStopDelay * reelIndex;
+        const delay = visual.animation.spinDuration + (visual.animation.reelStopDelay * reelIndex);
 
         const timer = window.setTimeout(() => {
           setReelStates((prev) => {
@@ -245,6 +245,15 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       // 後續渲染：檢查 board 是否變化
       if (!spinPacket || !spinPacket.board) {
         prevBoardRef.current = null;
+        return;
+      }
+
+      // 展示模式：不觸發動畫，直接顯示靜態盤面
+      if (spinPacket.isDemo) {
+        prevBoardRef.current = JSON.stringify(spinPacket.board);
+        setReelStates(['stopped', 'stopped', 'stopped', 'stopped', 'stopped']);
+        setWinningLineDisplay(null);
+        isSpinningRef.current = false;
         return;
       }
 

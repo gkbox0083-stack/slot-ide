@@ -249,12 +249,38 @@ export function Reel({
     // 計算減速時長（基於 easeStrength）
     const stopDuration = 0.5 + (animation.easeStrength * 1.0);
 
-    // cubic-bezier 曲線計算
+    // ===== 動態計算 cubic-bezier 控制點，使初始速度匹配 spinSpeed =====
+    // 
+    // spinning 階段速度: spinSpeed * 0.15 (px/ms)
+    // CSS transition 的標準化初始速度 = p1y / p1x
+    // 
+    // 為了讓 transition 開始時的實際速度等於 spinning 速度：
+    // 實際速度 = (distance / duration) * (p1y / p1x)
+    // 目標: 實際速度 = spinSpeed * 0.15 (px/ms)
+    // 
+    // 因此: p1y / p1x = (spinSpeed * 0.15 * duration) / distance
+
+    const distance = Math.abs(currentPos - finalTargetOffset);
+    const durationMs = stopDuration * 1000;
+    const spinningVelocity = animation.spinSpeed * 0.15; // px/ms
+
+    // 計算目標斜率（標準化速度）
+    // 斜率 = (spinning速度 * 動畫時長) / 滾動距離
+    const targetSlope = (spinningVelocity * durationMs) / distance;
+
+    // 限制斜率範圍，避免極端值導致動畫異常
+    // 斜率過大會讓開始太快，過小會讓開始太慢
+    const clampedSlope = Math.max(0.5, Math.min(targetSlope, 8));
+
+    // 固定 p1x，動態調整 p1y 來達到目標斜率
     const p1x = 0.1;
-    const p1y = 0.5 + (animation.easeStrength * 0.3);
+    const p1y = p1x * clampedSlope;
+
+    // p2 控制回彈效果，保持原邏輯
     const p2x = 0.2 + (animation.bounceStrength * 0.1);
     const p2y = 1 + (animation.bounceStrength * 0.6);
-    const bezierCurve = `cubic-bezier(${p1x}, ${p1y}, ${p2x}, ${p2y})`;
+
+    const bezierCurve = `cubic-bezier(${p1x.toFixed(3)}, ${p1y.toFixed(3)}, ${p2x.toFixed(3)}, ${p2y.toFixed(3)})`;
 
     // 先切換至靜止座標，清除任何殘留動畫
     setIsStopping(false);
@@ -268,7 +294,7 @@ export function Reel({
         setOffset(finalTargetOffset);
       });
     });
-  }, [animation.easeStrength, animation.bounceStrength, symbolHeight]);
+  }, [animation.spinSpeed, animation.easeStrength, animation.bounceStrength, symbolHeight]);
 
   /**
    * 處理 transition 結束

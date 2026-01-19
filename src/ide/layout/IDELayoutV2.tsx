@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { SlotMachine } from '../../runtime/index.js';
 import type { SlotMachineRef } from '../../runtime/index.js';
 import type { SpinPacket } from '../../types/spin-packet.js';
@@ -7,6 +7,40 @@ import { LeftSidebar } from './LeftSidebar.js';
 import { GameControlV2 } from './GameControlV2.js';
 import { GameControlBar } from './GameControlBar.js';
 import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
+
+/**
+ * 生成預設展示用 SpinPacket（無需執行 spin）
+ * 顯示固定的展示盤面，讓用戶了解產品功能
+ */
+function createDemoSpinPacket(
+  symbols: { id: string }[],
+  visualConfig: SpinPacket['visual'],
+  assets: SpinPacket['assets'],
+  boardConfig: { cols: 5; rows: 3 | 4 }
+): SpinPacket {
+  const { cols, rows } = boardConfig;
+
+  // 建立展示用盤面：均勻分布各種符號
+  const reels: string[][] = [];
+  for (let col = 0; col < cols; col++) {
+    const reel: string[] = [];
+    for (let row = 0; row < rows; row++) {
+      // 輪流使用各種符號，讓用戶看到完整的符號集
+      const symbolIndex = (col * rows + row) % symbols.length;
+      reel.push(symbols[symbolIndex].id);
+    }
+    reels.push(reel);
+  }
+
+  return {
+    version: '3',
+    board: { reels, cols, rows },
+    visual: visualConfig,
+    assets: assets && Object.keys(assets).length > 0 ? assets : undefined,
+    isDemo: true,  // 標記為展示模式，不觸發 spin 動畫
+  };
+}
+
 
 /**
  * IDE 主佈局 V2（新版三欄式）
@@ -35,6 +69,7 @@ import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
 export function IDELayoutV2() {
   const slotMachineRef = useRef<SlotMachineRef>(null);
   const [isStatsPanelOpen, setIsStatsPanelOpen] = useState(true);
+  const isInitializedRef = useRef(false);
 
   const {
     currentSpinPacket,
@@ -42,7 +77,27 @@ export function IDELayoutV2() {
     assets,
     gameName,
     symbols,  // 符號設定
+    boardConfig,
+    setCurrentSpinPacket,
   } = useGameConfigStore();
+
+  // 首次進入頁面時顯示預設展示盤面（不執行 spin）
+  useEffect(() => {
+    // 使用 ref 確保只執行一次（避免 React 18 StrictMode double render）
+    if (isInitializedRef.current) return;
+
+    // 如果已經有 SpinPacket，不重複初始化
+    if (currentSpinPacket) {
+      isInitializedRef.current = true;
+      return;
+    }
+
+    isInitializedRef.current = true;
+
+    // 建立靜態展示用 SpinPacket（不需要 Pool，不執行 spin）
+    const demoPacket = createDemoSpinPacket(symbols, visualConfig, assets, boardConfig);
+    setCurrentSpinPacket(demoPacket);
+  }, []);
 
   // 提取符號 ID 列表（用於 Reel 生成 Dummy）
   const availableSymbolIds = useMemo(() => symbols.map(s => s.id), [symbols]);
