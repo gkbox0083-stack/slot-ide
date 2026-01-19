@@ -161,7 +161,7 @@ export function PoolPanel() {
           🎚️ Pool 容量
         </h4>
         <div className="flex gap-2 mb-2">
-          {[50, 100, 200, 500].map(cap => (
+          {[100, 500, 1000, 5000].map(cap => (
             <button
               key={cap}
               onClick={() => setPoolCap(cap)}
@@ -177,12 +177,12 @@ export function PoolPanel() {
         <input
           type="number"
           value={poolCap}
-          onChange={(e) => setPoolCap(Math.max(1, Math.min(1000, parseInt(e.target.value) || 100)))}
+          onChange={(e) => setPoolCap(Math.max(1, Math.min(10000, parseInt(e.target.value) || 100)))}
           className="w-full px-3 py-2 bg-surface-900 border border-surface-700 rounded text-sm text-surface-100"
           min={1}
-          max={1000}
+          max={10000}
         />
-        <p className="mt-1 text-xs text-surface-500">每個 Outcome 的盤面數量 (1-1000)</p>
+        <p className="mt-1 text-xs text-surface-500">每個 Outcome 的盤面數量 (1-10000)</p>
       </div>
 
       {/* Build Pools */}

@@ -42,7 +42,7 @@ export interface BuildResult {
 export class PoolBuilder {
   private pools: Map<string, Pool> = new Map();
   private defaultCap: number = 100;
-  private readonly maxCap: number = 1000;
+  private readonly maxCap: number = 10000;
   private boardConfig: BoardConfig = { cols: 5, rows: 3 };
 
   constructor(

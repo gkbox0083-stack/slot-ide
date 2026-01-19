@@ -115,110 +115,42 @@ export function AssetPanel() {
     ];
 
   return (
-    <div style={{
-      padding: '16px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '4px',
-      border: '1px solid #ddd',
-    }}>
-      <h3 style={{
-        marginTop: 0,
-        marginBottom: '20px',
-        fontSize: '16px',
-        fontWeight: 'bold',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}>
+    <div className="p-0">
+      <h3 className="mt-0 mb-5 text-base font-bold flex items-center gap-2 text-surface-100">
         🎨 素材管理
       </h3>
 
       {/* Symbol 圖片上傳區 */}
-      <div style={{
-        marginBottom: '24px',
-        padding: '16px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-      }}>
-        <h4 style={{
-          marginTop: 0,
-          marginBottom: '16px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-        }}>
+      <div className="mb-6 p-4 bg-surface-900 border border-surface-700 rounded shadow-sm">
+        <h4 className="mt-0 mb-4 text-sm font-bold text-surface-200 uppercase tracking-wider">
           Symbol 圖片
         </h4>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-          gap: '12px',
-        }}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
           {symbols.map((symbol) => {
             const symbolId = symbol.id;
             const imageUrl = getSymbolImageUrl(symbolId);
             return (
               <div
                 key={symbolId}
-                style={{
-                  padding: '12px',
-                  backgroundColor: '#f8f9fa',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
+                className="p-3 bg-surface-800 border border-surface-700 rounded flex flex-col gap-2"
               >
-                <div style={{
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                }}>
+                <div className="text-xs font-bold text-center text-surface-300">
                   {symbolId} ({symbol.name})
                 </div>
                 {imageUrl ? (
-                  <div style={{
-                    width: '100%',
-                    height: '100px',
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}>
+                  <div className="w-full h-24 bg-surface-950 border border-surface-800 rounded flex items-center justify-center overflow-hidden">
                     <img
                       src={imageUrl}
                       alt={symbolId}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                      }}
+                      className="max-w-full max-h-full object-contain"
                     />
                   </div>
                 ) : (
-                  <div style={{
-                    width: '100%',
-                    height: '100px',
-                    backgroundColor: '#e0e0e0',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    color: '#666',
-                  }}>
+                  <div className="w-full h-24 bg-surface-700 border border-surface-600 rounded flex items-center justify-center text-xs text-surface-400">
                     未上傳
                   </div>
                 )}
-                <div style={{
-                  display: 'flex',
-                  gap: '4px',
-                }}>
+                <div className="flex gap-1">
                   <input
                     ref={(el) => {
                       fileInputRefs.current[`symbol_${symbolId}`] = el;
@@ -239,32 +171,14 @@ export function AssetPanel() {
                     onClick={() => {
                       fileInputRefs.current[`symbol_${symbolId}`]?.click();
                     }}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      fontSize: '12px',
-                      backgroundColor: '#3498db',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
+                    className="flex-1 py-1.5 text-xs bg-primary-600 hover:bg-primary-500 text-white rounded transition-colors"
                   >
                     {imageUrl ? '更換' : '上傳'}
                   </button>
                   {imageUrl && (
                     <button
                       onClick={() => handleSymbolRemove(symbolId)}
-                      style={{
-                        flex: 1,
-                        padding: '6px',
-                        fontSize: '12px',
-                        backgroundColor: '#e74c3c',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
+                      className="flex-1 py-1.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
                     >
                       清除
                     </button>
@@ -277,96 +191,41 @@ export function AssetPanel() {
       </div>
 
       {/* 其他素材上傳區 */}
-      <div style={{
-        marginBottom: '24px',
-        padding: '16px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-      }}>
-        <h4 style={{
-          marginTop: 0,
-          marginBottom: '16px',
-          fontSize: '14px',
-          fontWeight: 'bold',
-        }}>
+      <div className="mb-6 p-4 bg-surface-900 border border-surface-700 rounded shadow-sm">
+        <h4 className="mt-0 mb-4 text-sm font-bold text-surface-200 uppercase tracking-wider">
           其他素材
         </h4>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}>
+        <div className="flex flex-col gap-3">
           {otherAssets.map(({ key, label, description }) => {
             const imageUrl = getOtherAssetUrl(key);
             return (
               <div
                 key={key}
-                style={{
-                  padding: '12px',
-                  backgroundColor: '#f8f9fa',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
+                className="p-3 bg-surface-800 border border-surface-700 rounded flex flex-col gap-2"
               >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
+                <div className="flex justify-between items-center">
                   <div>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                    }}>
+                    <div className="text-sm font-bold text-surface-200">
                       {label}
                     </div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: '#666',
-                      marginTop: '2px',
-                    }}>
+                    <div className="text-xs text-surface-400 mt-0.5">
                       {description}
                     </div>
                   </div>
-                  <div style={{
-                    fontSize: '12px',
-                    color: imageUrl ? '#2ecc71' : '#999',
-                    fontWeight: 'bold',
-                  }}>
+                  <div className={`text-xs font-bold ${imageUrl ? 'text-green-400' : 'text-surface-500'}`}>
                     {imageUrl ? '✓ 已上傳' : '未上傳'}
                   </div>
                 </div>
                 {imageUrl && (
-                  <div style={{
-                    width: '100%',
-                    maxHeight: '150px',
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}>
+                  <div className="w-full max-h-[150px] bg-surface-950 border border-surface-800 rounded flex items-center justify-center overflow-hidden">
                     <img
                       src={imageUrl}
                       alt={label}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '150px',
-                        objectFit: 'contain',
-                      }}
+                      className="max-w-full max-h-[150px] object-contain"
                     />
                   </div>
                 )}
-                <div style={{
-                  display: 'flex',
-                  gap: '8px',
-                }}>
+                <div className="flex gap-2">
                   <input
                     ref={(el) => {
                       fileInputRefs.current[`other_${key}`] = el;
@@ -387,32 +246,14 @@ export function AssetPanel() {
                     onClick={() => {
                       fileInputRefs.current[`other_${key}`]?.click();
                     }}
-                    style={{
-                      flex: 1,
-                      padding: '8px',
-                      fontSize: '12px',
-                      backgroundColor: '#3498db',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
+                    className="flex-1 py-2 text-xs bg-primary-600 hover:bg-primary-500 text-white rounded transition-colors"
                   >
                     {imageUrl ? '更換' : '上傳'}
                   </button>
                   {imageUrl && (
                     <button
                       onClick={() => handleOtherAssetRemove(key)}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        fontSize: '12px',
-                        backgroundColor: '#e74c3c',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
+                      className="flex-1 py-2 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
                     >
                       清除
                     </button>
@@ -425,34 +266,14 @@ export function AssetPanel() {
       </div>
 
       {/* 清除所有素材按鈕 */}
-      <div style={{
-        padding: '16px',
-        backgroundColor: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-      }}>
+      <div className="p-4 bg-surface-900 border border-surface-700 rounded">
         <button
           onClick={handleClearAll}
-          style={{
-            width: '100%',
-            padding: '12px',
-            fontSize: '14px',
-            backgroundColor: '#e74c3c',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
+          className="w-full py-3 text-sm bg-red-600 hover:bg-red-500 text-white rounded transition-colors font-bold"
         >
           🗑️ 清除所有素材
         </button>
-        <div style={{
-          marginTop: '8px',
-          fontSize: '11px',
-          color: '#666',
-          textAlign: 'center',
-        }}>
+        <div className="mt-2 text-xs text-surface-400 text-center">
           此操作會清除所有已上傳的素材，包括 Symbol 圖片和其他素材
         </div>
       </div>

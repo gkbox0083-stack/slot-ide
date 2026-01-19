@@ -165,9 +165,13 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
           </div>
         </div>
         <div className="flex gap-4 text-xs text-surface-400" role="group" aria-label="賠付與權重">
-          <span role="text">3連:{symbol.payouts.match3}</span>
-          <span role="text">4連:{symbol.payouts.match4}</span>
-          <span role="text">5連:{symbol.payouts.match5}</span>
+          {symbol.type !== 'scatter' && (
+            <>
+              <span role="text">3連:{symbol.payouts.match3}</span>
+              <span role="text">4連:{symbol.payouts.match4}</span>
+              <span role="text">5連:{symbol.payouts.match5}</span>
+            </>
+          )}
           <span role="text" className="text-green-400">視覺權重:{symbol.appearanceWeight}</span>
         </div>
       </div>
@@ -240,38 +244,40 @@ function SymbolItem({ symbol, isEditing, onEdit, onSave, onCancel, onDelete }: S
       </div>
 
       {/* 賠付設定 */}
-      <div className="mb-3">
-        <label className="text-xs text-surface-400 block mb-1">賠付 (3連/4連/5連)</label>
-        <div className="grid grid-cols-3 gap-2">
-          <input
-            type="number"
-            value={editedSymbol.payouts.match3}
-            onChange={(e) => setEditedSymbol({
-              ...editedSymbol,
-              payouts: { ...editedSymbol.payouts, match3: Number(e.target.value) }
-            })}
-            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
-          />
-          <input
-            type="number"
-            value={editedSymbol.payouts.match4}
-            onChange={(e) => setEditedSymbol({
-              ...editedSymbol,
-              payouts: { ...editedSymbol.payouts, match4: Number(e.target.value) }
-            })}
-            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
-          />
-          <input
-            type="number"
-            value={editedSymbol.payouts.match5}
-            onChange={(e) => setEditedSymbol({
-              ...editedSymbol,
-              payouts: { ...editedSymbol.payouts, match5: Number(e.target.value) }
-            })}
-            className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
-          />
+      {editedSymbol.type !== 'scatter' && (
+        <div className="mb-3">
+          <label className="text-xs text-surface-400 block mb-1">賠付 (3連/4連/5連)</label>
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              type="number"
+              value={editedSymbol.payouts.match3}
+              onChange={(e) => setEditedSymbol({
+                ...editedSymbol,
+                payouts: { ...editedSymbol.payouts, match3: Number(e.target.value) }
+              })}
+              className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+            />
+            <input
+              type="number"
+              value={editedSymbol.payouts.match4}
+              onChange={(e) => setEditedSymbol({
+                ...editedSymbol,
+                payouts: { ...editedSymbol.payouts, match4: Number(e.target.value) }
+              })}
+              className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+            />
+            <input
+              type="number"
+              value={editedSymbol.payouts.match5}
+              onChange={(e) => setEditedSymbol({
+                ...editedSymbol,
+                payouts: { ...editedSymbol.payouts, match5: Number(e.target.value) }
+              })}
+              className="px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200 text-center"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 視覺權重設定 */}
       <div className="mb-3">
@@ -430,6 +436,7 @@ interface AddSymbolFormProps {
 
 function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
   const [newSymbol, setNewSymbol] = useState<Partial<SymbolDefinition>>({
+    id: '',
     name: '',
     type: 'normal',
     category: 'high',
@@ -438,12 +445,16 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
     ngWeight: 20,
     fgWeight: 20,
   });
+  const [idManuallyChanged, setIdManuallyChanged] = useState(false);
 
   const handleAdd = () => {
     if (!newSymbol.name) return;
 
+    // 如果 ID 為空，則使用 Name (如果用戶刪除了 ID 導致為空的情況)
+    const finalId = newSymbol.id || newSymbol.name;
+
     const symbol: SymbolDefinition = {
-      id: `SYM_${Date.now()}`,
+      id: finalId,
       name: newSymbol.name || '',
       type: newSymbol.type || 'normal',
       category: newSymbol.category || 'high',
@@ -471,10 +482,30 @@ function AddSymbolForm({ onAdd, onCancel }: AddSymbolFormProps) {
       <h5 className="text-sm font-semibold text-green-400 mb-3">新增符號</h5>
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
+          <label className="text-xs text-surface-400 block mb-1">ID</label>
+          <input
+            value={newSymbol.id || ''}
+            onChange={(e) => {
+              setNewSymbol({ ...newSymbol, id: e.target.value });
+              setIdManuallyChanged(true);
+            }}
+            placeholder="ID (預設同名稱)"
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
+          />
+        </div>
+        <div>
           <label className="text-xs text-surface-400 block mb-1">名稱</label>
           <input
             value={newSymbol.name || ''}
-            onChange={(e) => setNewSymbol({ ...newSymbol, name: e.target.value })}
+            onChange={(e) => {
+              const name = e.target.value;
+              setNewSymbol(prev => ({
+                ...prev,
+                name,
+                // 如果 ID 未被手動修改，則同步為 Name
+                id: idManuallyChanged ? prev.id : name
+              }));
+            }}
             placeholder="輸入符號名稱"
             className="w-full px-2 py-1.5 bg-surface-900 border border-surface-600 rounded text-sm text-surface-200"
           />

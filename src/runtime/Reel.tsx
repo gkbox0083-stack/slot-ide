@@ -17,6 +17,7 @@ export interface ReelProps {
     spinDuration: number;           // 旋轉時長 (ms)
     easeStrength: number;           // 緩停力度 (0-1)
     bounceStrength: number;         // 回彈力度 (0-1)
+    reelStopDelay?: number;         // 停輪間隔 (ms) - 傳入用於計算所需高度
   };
   symbolSize?: number;              // 符號尺寸（預設 100）
   symbolScale?: number;             // 符號縮放（預設 1，僅影響符號視覺大小）
@@ -73,11 +74,6 @@ function generateDummySymbols(
   }
   return result;
 }
-
-/**
- * Unified Strip 常數
- */
-const DUMMY_COUNT = 30; // Dummy 符號數量
 
 /**
  * Reel 元件
@@ -142,30 +138,62 @@ export function Reel({
     // 上次結果（作為動畫起點），如果沒有則使用當前符號
     const prevFinal = previousSymbols || symbols;
 
+    // 計算所需的 Dummy 數量，防止高速旋轉時穿幫
+    // 預估最大旋轉時間：spinDuration + (5 * reelStopDelay)
+    // 速度：spinSpeed * 0.15 (與 animate 內一致)
+    const speed = animation.spinSpeed * 0.15;
+    const maxDuration = animation.spinDuration + ((animation.reelStopDelay || 200) * 5) + 1000; // +1000ms buffer
+    const minDistance = maxDuration * speed;
+
+    // 至少 30 個，或者根據計算結果 + 10 個緩衝
+    const calculatedCount = Math.ceil(minDistance / symbolHeight) + 10;
+    const dummyCount = Math.max(30, calculatedCount);
+
     // 生成 Dummy 符號（使用視覺權重）
-    const dummySymbols = generateDummySymbols(DUMMY_COUNT, availableSymbols, symbolWeights);
+    const dummySymbols = generateDummySymbols(dummyCount, availableSymbols, symbolWeights);
 
     // 當前結果（動畫終點）
     const newFinal = symbols;
 
-    // 前置 padding（確保有足夠空間）
-    const padding = [...symbols];
+    // 計算所需 padding：防止 bounce 時上方穿幫
+    // bounceStrength 最大 1 時，cubic-bezier p2y = 1.6，會產生約 60% 的超調
+    // 需要根據 bounceStrength 和滾動距離動態計算所需 padding
+    // 
+    // 計算回彈距離：
+    // - 停輪時的滾動距離約為 (dummyCount + rows) * symbolHeight
+    // - 超調比例約為 bounceStrength * 0.6 (對應 p2y = 1 + bounceStrength * 0.6)
+    // - 額外需要的 padding = 滾動距離 * 超調比例 / symbolHeight
+    const estimatedScrollDistance = (dummyCount + rows) * symbolHeight;
+    const overshootRatio = animation.bounceStrength * 0.6;
+    const bounceExtraSymbols = Math.ceil((estimatedScrollDistance * overshootRatio) / symbolHeight);
+
+    // 基礎 padding (rows * 2) + 回彈所需額外 padding + 安全緩衝 (5)
+    const basePadding = Math.max(rows * 2, 5);
+    const paddingCount = basePadding + bounceExtraSymbols + 5;
+
+    // 重複 symbols 來填滿 padding
+    const padding: SymbolId[] = [];
+    while (padding.length < paddingCount) {
+      padding.push(...symbols);
+    }
+    // 截取所需長度並保持尾部對齊（這樣接縫處與 newFinal 連續）
+    const finalPadding = padding.slice(-paddingCount);
 
     // 組合 Unified Strip: [ padding ] + [ newFinal ] + [ dummy ] + [ prevFinal ]
     // 這樣當符號條往上移動時，符號會從上往下滾動
-    const strip = [...padding, ...newFinal, ...dummySymbols, ...prevFinal];
+    const strip = [...finalPadding, ...newFinal, ...dummySymbols, ...prevFinal];
 
-    // 記錄結構資訊
+    // 更新 stripInfoRef，注意 paddingLength 現在是 finalPadding.length
     stripInfoRef.current = {
-      paddingLength: padding.length,
+      paddingLength: finalPadding.length,
       finalLength: newFinal.length,
       dummyLength: dummySymbols.length,
-      prevStart: padding.length + newFinal.length + dummySymbols.length,
+      prevStart: finalPadding.length + newFinal.length + dummySymbols.length,
       totalLength: strip.length,
     };
 
     unifiedStripRef.current = strip;
-  }, [symbols, previousSymbols, availableSymbols, symbolWeights]);
+  }, [symbols, previousSymbols, availableSymbols, symbolWeights, animation, symbolHeight, rows]);
 
   /**
    * 開始滾動
