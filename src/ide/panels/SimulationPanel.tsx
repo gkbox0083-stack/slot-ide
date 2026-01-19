@@ -60,26 +60,7 @@ export function SimulationPanel() {
 
   return (
     <div className="space-y-4 p-4">
-      {/* 理論 RTP（V3 簡化版） */}
-      <div className="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-lg p-4 border border-indigo-700/50">
-        <h4 className="text-sm font-semibold text-indigo-300 mb-3 flex items-center gap-2">
-          📐 理論 RTP
-        </h4>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-surface-400">Line RTP:</span>
-            <span className="text-surface-200 font-semibold">{theoreticalRTP.lineRTP.toFixed(2)}%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-surface-400">Scatter RTP:</span>
-            <span className="text-surface-200 font-semibold">{theoreticalRTP.scatterRTP.toFixed(2)}%</span>
-          </div>
-          <div className="col-span-2 flex justify-between pt-2 border-t border-surface-700">
-            <span className="text-yellow-400 font-semibold">總 RTP:</span>
-            <span className="text-yellow-400 font-bold">{theoreticalRTP.totalRTP.toFixed(2)}%</span>
-          </div>
-        </div>
-      </div>
+
 
       {/* 模擬次數 */}
       <div className="bg-surface-800 rounded-lg p-4">
@@ -92,8 +73,8 @@ export function SimulationPanel() {
               key={count}
               onClick={() => handleSpinCountSelect(count)}
               className={`py-2 text-sm rounded transition-all ${spinCount === count && !customCount
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                ? 'bg-primary-600 text-white'
+                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
                 }`}
             >
               {count.toLocaleString()}
@@ -124,8 +105,8 @@ export function SimulationPanel() {
           <button
             onClick={() => setMode('stack')}
             className={`flex-1 py-2 text-sm rounded transition-all ${mode === 'stack'
-                ? 'bg-green-600 text-white'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+              ? 'bg-green-600 text-white'
+              : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
               }`}
           >
             📊 堆疊
@@ -133,8 +114,8 @@ export function SimulationPanel() {
           <button
             onClick={() => setMode('compare')}
             className={`flex-1 py-2 text-sm rounded transition-all ${mode === 'compare'
-                ? 'bg-blue-600 text-white'
-                : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+              ? 'bg-blue-600 text-white'
+              : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
               }`}
           >
             📈 比較
@@ -160,7 +141,7 @@ export function SimulationPanel() {
           <div className="flex justify-between">
             <span className="text-surface-400">實際 RTP:</span>
             <span className={`font-semibold ${actualRTP > theoreticalRTP.totalRTP ? 'text-red-400' :
-                actualRTP < theoreticalRTP.totalRTP * 0.9 ? 'text-yellow-400' : 'text-green-400'
+              actualRTP < theoreticalRTP.totalRTP * 0.9 ? 'text-yellow-400' : 'text-green-400'
               }`}>
               {actualRTP.toFixed(2)}%
             </span>

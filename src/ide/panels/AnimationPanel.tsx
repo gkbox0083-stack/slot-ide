@@ -91,9 +91,17 @@ export function AnimationPanel() {
 
   return (
     <div className="p-0">
-      <h3 className="mt-0 mb-5 text-base font-bold flex items-center gap-2 text-surface-100">
-        🎬 動畫參數
-      </h3>
+      <div className="flex justify-between items-center mb-5">
+        <h3 className="m-0 text-base font-bold flex items-center gap-2 text-surface-100">
+          🎬 動畫參數
+        </h3>
+        <button
+          onClick={handleReset}
+          className="text-xs text-surface-400 hover:text-white flex items-center gap-1 transition-colors"
+        >
+          <span>↺</span> 全部重置
+        </button>
+      </div>
 
       <div className="space-y-1">
         {/* 滾輪轉速 */}
@@ -152,20 +160,6 @@ export function AnimationPanel() {
           value={animation.bounceStrength}
           hint="停輪時的回彈效果強度（0-0.5 為安全範圍）"
         />
-      </div>
-
-      {/* 重置按鈕 */}
-      <div className="mt-5 pt-4 border-t border-surface-700">
-        <button
-          onClick={handleReset}
-          className="w-full py-2.5 px-4 text-sm bg-surface-700 hover:bg-surface-600 text-white rounded transition-colors font-bold mb-3"
-        >
-          🔄 重置為預設值
-        </button>
-
-        <div className="text-xs text-green-400 italic text-center">
-          ✨ 調整後即時生效（下次 Spin 時套用）
-        </div>
       </div>
     </div>
   );

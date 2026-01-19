@@ -25,7 +25,7 @@ export function GameControlBar() {
         setCurrentSpinPacket,
     } = useGameConfigStore();
 
-    const { addResult, spinCount } = useSimulationStore();
+    const { addResult, spinCount, appendBalance, setBalanceHistory } = useSimulationStore();
 
     // 累積 spin 結果到 simulation store（V3 簡化版）
     const accumulateSpinResult = useCallback((winAmount: number, scatterWin: number = 0) => {
@@ -71,7 +71,10 @@ export function GameControlBar() {
 
             setCurrentSpinPacket(packet);
 
-            await new Promise(resolve => setTimeout(resolve, visualConfig.animation.spinDuration + 500));
+            // 計算完整動畫時間：spinDuration + (reelStopDelay * 5軸) + buffer
+            const reelStopDelay = visualConfig.animation.reelStopDelay || 200;
+            const fullAnimationTime = visualConfig.animation.spinDuration + (reelStopDelay * 5) + 500;
+            await new Promise(resolve => setTimeout(resolve, fullAnimationTime));
 
             const winAmount = packet.meta?.win || 0;
             const scatterPayout = packet.meta?.scatterPayout || 0;
@@ -81,6 +84,9 @@ export function GameControlBar() {
                 setBalance(currentBalance + winAmount);
                 setWin(winAmount);
             }
+
+            // 更新 Balance History
+            appendBalance(useGameConfigStore.getState().balance);
 
             accumulateSpinResult(winAmount, scatterPayout);
 
@@ -108,7 +114,8 @@ export function GameControlBar() {
 
             while (autoSpinRef.current) {
                 await handleSpin();
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // 結果展示時間：讓玩家查看本局結果
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
                 const currentBalance = useGameConfigStore.getState().balance;
                 if (!autoSpinRef.current || currentBalance < baseBet || !isPoolsBuilt) {
@@ -144,6 +151,10 @@ export function GameControlBar() {
             maxWin: 0,
         };
 
+        // 模擬用的虛擬餘額與歷史紀錄
+        let virtualBalance = balance;
+        const history: number[] = [];
+
         try {
             const assetsData = Object.keys(assets).length > 0 ? assets : undefined;
 
@@ -163,6 +174,10 @@ export function GameControlBar() {
                 }
                 batchStats.maxWin = Math.max(batchStats.maxWin, winAmount / baseBet);
 
+                // 更新虛擬餘額
+                virtualBalance = virtualBalance - baseBet + winAmount;
+                history.push(virtualBalance);
+
                 // 每 50 次旋轉釋放一次主執行緒
                 if (i % 50 === 0) {
                     await new Promise(r => setTimeout(r, 0));
@@ -170,6 +185,7 @@ export function GameControlBar() {
             }
 
             addResult(batchStats);
+            setBalanceHistory(history);
 
         } catch (error) {
             console.error('Simulation error:', error);

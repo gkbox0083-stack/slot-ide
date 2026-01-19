@@ -136,9 +136,17 @@ export function AssetPanel() {
 
   return (
     <div className="p-0">
-      <h3 className="mt-0 mb-5 text-base font-bold flex items-center gap-2 text-surface-100">
-        🎨 素材管理
-      </h3>
+      <div className="flex justify-between items-center mb-5">
+        <h3 className="m-0 text-base font-bold flex items-center gap-2 text-surface-100">
+          🎨 素材管理
+        </h3>
+        <button
+          onClick={handleClearAll}
+          className="text-xs text-surface-400 hover:text-white flex items-center gap-1 transition-colors"
+        >
+          <span>↺</span> 全部重置
+        </button>
+      </div>
 
       {/* Symbol 圖片上傳區 */}
       <div className="mb-6 p-4 bg-surface-900 border border-surface-700 rounded shadow-sm">
@@ -282,19 +290,6 @@ export function AssetPanel() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* 清除所有素材按鈕 */}
-      <div className="p-4 bg-surface-900 border border-surface-700 rounded">
-        <button
-          onClick={handleClearAll}
-          className="w-full py-3 text-sm bg-red-600 hover:bg-red-500 text-white rounded transition-colors font-bold"
-        >
-          🗑️ 清除所有素材
-        </button>
-        <div className="mt-2 text-xs text-surface-400 text-center">
-          此操作會清除所有已上傳的素材，包括 Symbol 圖片和其他素材
         </div>
       </div>
     </div>

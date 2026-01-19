@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore.js';
-import { useGameConfigStore } from '../../store/useGameConfigStore.js';
+
 import type { SimulationStats } from '../../engine/rtp-calculator.js';
 
 /**
@@ -8,8 +8,7 @@ import type { SimulationStats } from '../../engine/rtp-calculator.js';
  * 包含：Winnings 柱狀圖、Balance History 折線圖、Symbol Distribution 圓餅圖
  */
 export function StatisticsPanelV2() {
-  const { results } = useSimulationStore();
-  const { symbols } = useGameConfigStore();
+  const { results, balanceHistory } = useSimulationStore();
 
   const handleExportCSV = () => {
     if (results.length === 0) return;
@@ -72,12 +71,12 @@ export function StatisticsPanelV2() {
           <RTPLineChart results={results} />
         </div>
 
-        {/* Symbol Distribution 圓餅圖 */}
+        {/* Balance History 折線圖 (New) */}
         <div className="flex-1 min-w-[280px] bg-surface-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-            🎰 符號權重
+            💵 Balance
           </h4>
-          <SymbolPieChart symbols={symbols} />
+          <BalanceHistoryChart history={balanceHistory} />
         </div>
       </div>
 
@@ -292,11 +291,12 @@ function RTPLineChart({ results }: { results: SimulationStats[] }) {
 }
 
 /**
- * Symbol 權重圓餅圖
+ * Balance History 折線圖
  */
-function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWeight: number }[] }) {
+function BalanceHistoryChart({ history }: { history: number[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const LOGICAL_SIZE = 160;
+  const LOGICAL_WIDTH = 260;
+  const LOGICAL_HEIGHT = 160;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -306,79 +306,105 @@ function SymbolPieChart({ symbols }: { symbols: { id: string; name: string; ngWe
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = LOGICAL_SIZE * dpr;
-    canvas.height = LOGICAL_SIZE * dpr;
-    canvas.style.width = `${LOGICAL_SIZE}px`;
-    canvas.style.height = `${LOGICAL_SIZE}px`;
+    canvas.width = LOGICAL_WIDTH * dpr;
+    canvas.height = LOGICAL_HEIGHT * dpr;
+    canvas.style.width = `${LOGICAL_WIDTH}px`;
+    canvas.style.height = `${LOGICAL_HEIGHT}px`;
     ctx.scale(dpr, dpr);
 
-    const width = LOGICAL_SIZE;
-    const height = LOGICAL_SIZE;
+    const width = LOGICAL_WIDTH;
+    const height = LOGICAL_HEIGHT;
 
     ctx.clearRect(0, 0, width, height);
 
-    if (symbols.length === 0) {
+    if (history.length === 0) {
       ctx.fillStyle = '#888';
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('尚無符號', width / 2, height / 2);
+      ctx.fillText('尚無紀錄', width / 2, height / 2);
       return;
     }
 
-    const totalWeight = symbols.reduce((sum, s) => sum + s.ngWeight, 0);
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = Math.min(width, height) / 2 - 30;
+    const padding = { top: 20, right: 20, bottom: 30, left: 50 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
 
-    const colors = [
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-      '#FF9F40', '#FF6384', '#C9CBCF', '#7BC225', '#E8E87E',
-    ];
+    // Downsampling if too many points
+    let displayData = history;
+    const maxPoints = chartWidth; // One point per pixel
+    if (history.length > maxPoints) {
+      const step = Math.ceil(history.length / maxPoints);
+      displayData = history.filter((_, i) => i % step === 0);
+    }
 
-    let startAngle = -Math.PI / 2;
+    const minBalance = Math.min(...displayData);
+    const maxBalance = Math.max(...displayData);
+    const range = maxBalance - minBalance || 100;
 
-    symbols.forEach((symbol, i) => {
-      const sliceAngle = (symbol.ngWeight / totalWeight) * Math.PI * 2;
-      const endAngle = startAngle + sliceAngle;
+    // Background
+    ctx.fillStyle = 'rgba(76, 175, 80, 0.05)';
+    ctx.fillRect(padding.left, padding.top, chartWidth, chartHeight);
 
-      ctx.fillStyle = colors[i % colors.length];
+    // Initial Balance Line (optional, but good for reference)
+    const initialBalance = history[0];
+    const initialY = padding.top + chartHeight - ((initialBalance - minBalance) / range) * chartHeight;
+
+    if (initialY >= padding.top && initialY <= height - padding.bottom) {
+      ctx.strokeStyle = '#444';
+      ctx.setLineDash([2, 4]);
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(padding.left, initialY);
+      ctx.lineTo(width - padding.right, initialY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
-      if (symbol.ngWeight / totalWeight > 0.05) {
-        const midAngle = startAngle + sliceAngle / 2;
-        const labelRadius = radius * 0.65;
-        const labelX = centerX + Math.cos(midAngle) * labelRadius;
-        const labelY = centerY + Math.sin(midAngle) * labelRadius;
+    // Line
+    ctx.strokeStyle = '#4CAF50';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
 
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(symbol.id, labelX, labelY);
+    displayData.forEach((balance, i) => {
+      const x = padding.left + (i / (displayData.length - 1 || 1)) * chartWidth;
+      const y = padding.top + chartHeight - ((balance - minBalance) / range) * chartHeight;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
       }
-
-      startAngle = endAngle;
     });
 
-    ctx.fillStyle = '#1a1a2e';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.stroke();
 
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${symbols.length}`, centerX, centerY - 6);
+    // Last Value Dot
+    if (displayData.length > 0) {
+      const lastBalance = displayData[displayData.length - 1];
+      const lastX = width - padding.right;
+      const lastY = padding.top + chartHeight - ((lastBalance - minBalance) / range) * chartHeight;
+
+      ctx.fillStyle = lastBalance >= initialBalance ? '#4CAF50' : '#f44336';
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label with current balance
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`$${lastBalance.toLocaleString()}`, lastX - 8, lastY - 8);
+    }
+
+    // Y-Axis Labels (Min/Max)
     ctx.fillStyle = '#888';
     ctx.font = '10px sans-serif';
-    ctx.fillText('符號', centerX, centerY + 8);
-  }, [symbols]);
+    ctx.textAlign = 'right';
+    ctx.fillText(`$${Math.round(maxBalance).toLocaleString()}`, padding.left - 4, padding.top + 10);
+    ctx.fillText(`$${Math.round(minBalance).toLocaleString()}`, padding.left - 4, height - padding.bottom);
+
+  }, [history]);
 
   return (
     <canvas

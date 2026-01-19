@@ -10,6 +10,7 @@ interface SimulationStoreState {
   results: SimulationStats[];
   currentIndex: number;
   spinCount: number;
+  balanceHistory: number[];
 }
 
 interface SimulationStoreActions {
@@ -20,6 +21,8 @@ interface SimulationStoreActions {
   clearResults: () => void;
   setIsRunning: (isRunning: boolean) => void;
   setSpinCount: (count: number) => void;
+  setBalanceHistory: (history: number[]) => void;
+  appendBalance: (balance: number) => void;
 }
 
 const initialState: SimulationStoreState = {
@@ -29,6 +32,7 @@ const initialState: SimulationStoreState = {
   results: [],
   currentIndex: 0,
   spinCount: 1000,
+  balanceHistory: [],
 };
 
 export const useSimulationStore = create<SimulationStoreState & SimulationStoreActions>()(
@@ -45,11 +49,13 @@ export const useSimulationStore = create<SimulationStoreState & SimulationStoreA
           isRunning: true,
           progress: 0,
           currentIndex: results.length,
+          // compare 模式下不重置 history，除非使用者手動清除
         });
       } else {
         set({
           isRunning: true,
           progress: 0,
+          balanceHistory: [], // stack 模式或新模擬開始時重置 History
         });
       }
     },
@@ -97,10 +103,17 @@ export const useSimulationStore = create<SimulationStoreState & SimulationStoreA
       results: [],
       currentIndex: 0,
       progress: 0,
+      balanceHistory: [],
     }),
 
     setIsRunning: (isRunning) => set({ isRunning }),
 
     setSpinCount: (count) => set({ spinCount: count }),
+
+    setBalanceHistory: (history) => set({ balanceHistory: history }),
+
+    appendBalance: (balance) => set((state) => ({
+      balanceHistory: [...state.balanceHistory, balance]
+    })),
   })
 );
