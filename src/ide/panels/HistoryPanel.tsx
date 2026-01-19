@@ -41,7 +41,7 @@ export function HistoryPanel() {
       {/* 關鍵指標 */}
       <div className="bg-surface-800 rounded-lg p-4">
         <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-          📈 關鍵指標
+          關鍵指標
         </h4>
         <div className="grid grid-cols-2 gap-3">
           <StatCard
@@ -78,37 +78,15 @@ export function HistoryPanel() {
         </div>
       </div>
 
-      {/* RTP 分解（V3 簡化版） */}
-      <div className="bg-surface-800 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-          🔬 RTP 分解
-        </h4>
-        <div className="space-y-3">
-          <RTPRow
-            label="Line RTP"
-            actual={rtpBreakdown.lineRTP}
-            theoretical={theoreticalRTP.lineRTP}
-          />
-          <RTPRow
-            label="Scatter RTP"
-            actual={rtpBreakdown.scatterRTP}
-            theoretical={theoreticalRTP.scatterRTP}
-          />
-          <div className="border-t border-surface-700 pt-3">
-            <RTPRow
-              label="總 RTP"
-              actual={rtpBreakdown.totalRTP}
-              theoretical={theoreticalRTP.totalRTP}
-              isTotal
-            />
-          </div>
-        </div>
-      </div>
+      {/* 當局連線紀錄 */}
+      <SpinHistoryCard />
+
+
 
       {/* 損益統計 */}
       <div className="bg-surface-800 rounded-lg p-4">
         <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-          💰 損益統計
+          損益統計
         </h4>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -132,40 +110,13 @@ export function HistoryPanel() {
         </div>
       </div>
 
-      {/* 波動性指標 */}
-      <div className="bg-surface-800 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-          📊 波動性
-        </h4>
-        <div className="flex items-center justify-center gap-2">
-          <span className={`text-xl font-bold ${additionalStats.volatility === '高' ? 'text-red-400' :
-            additionalStats.volatility === '中' ? 'text-yellow-400' : 'text-green-400'
-            }`}>
-            {additionalStats.volatility}
-          </span>
-          <span className="text-surface-400 text-sm">
-            ({additionalStats.hitRate.toFixed(1)}% Hit Rate)
-          </span>
-        </div>
-        <div className="mt-2 h-2 bg-surface-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-all ${additionalStats.volatility === '高' ? 'bg-red-500 w-1/3' :
-              additionalStats.volatility === '中' ? 'bg-yellow-500 w-2/3' : 'bg-green-500 w-full'
-              }`}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-surface-500 mt-1">
-          <span>低</span>
-          <span>中</span>
-          <span>高</span>
-        </div>
-      </div>
+
 
       {/* 比較模式歷史 */}
       {mode === 'compare' && results.length > 1 && (
         <div className="bg-surface-800 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
-            📋 比較歷史
+            比較歷史
           </h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {results.map((result, index) => {
@@ -192,7 +143,7 @@ export function HistoryPanel() {
       {/* 無數據提示 */}
       {results.length === 0 && (
         <div className="bg-surface-800/50 rounded-lg p-8 text-center">
-          <p className="text-surface-500 text-lg mb-2">📊 尚無模擬數據</p>
+          <p className="text-surface-500 text-lg mb-2">尚無模擬數據</p>
           <p className="text-surface-600 text-sm">
             前往 Simulation Tab 開始模擬
           </p>
@@ -235,41 +186,58 @@ function StatCard({ label, value, comparison, type }: StatCardProps) {
 }
 
 /**
- * RTP 行元件
+ * SpinHistoryCardComponent
  */
-interface RTPRowProps {
-  label: string;
-  actual: number;
-  theoretical: number;
-  precision?: number;
-  isTotal?: boolean;
-}
+function SpinHistoryCard() {
+  const { currentSpinPacket, symbols } = useGameConfigStore();
 
-function RTPRow({ label, actual, theoretical, precision = 2, isTotal }: RTPRowProps) {
-  const diff = actual - theoretical;
-  const diffPercent = theoretical > 0 ? (diff / theoretical) * 100 : 0;
+  if (!currentSpinPacket?.meta) return null;
 
-  let diffColor = 'text-surface-500';
-  if (Math.abs(diffPercent) > 5) {
-    diffColor = diff > 0 ? 'text-red-400' : 'text-yellow-400';
-  } else {
-    diffColor = 'text-green-400';
+  const { winningLines, scatterPayout } = currentSpinPacket.meta;
+  const hasWins = winningLines.length > 0 || (scatterPayout && scatterPayout > 0);
+
+  if (!hasWins) {
+    return (
+      <div className="bg-surface-800 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-surface-300 mb-3">當局連線紀錄</h4>
+        <div className="text-surface-500 text-sm text-center py-2">
+          未中獎
+        </div>
+      </div>
+    );
   }
 
+  const getSymbolName = (id: string) => {
+    return symbols.find(s => s.id === id)?.name || id;
+  };
+
   return (
-    <div className={`flex items-center justify-between text-sm ${isTotal ? 'font-semibold' : ''}`}>
-      <span className={isTotal ? 'text-yellow-400' : 'text-surface-400'}>{label}</span>
-      <div className="flex items-center gap-3">
-        <span className={`${isTotal ? 'text-white' : 'text-surface-200'}`}>
-          {actual.toFixed(precision)}%
-        </span>
-        <span className="text-surface-600">
-          (理論: {theoretical.toFixed(precision)}%)
-        </span>
-        <span className={`${diffColor} text-xs`}>
-          {diff >= 0 ? '+' : ''}{diff.toFixed(precision)}%
-        </span>
+    <div className="bg-surface-800 rounded-lg p-4">
+      <h4 className="text-sm font-semibold text-surface-300 mb-3">當局連線紀錄</h4>
+      <div className="space-y-2 text-sm">
+        {winningLines.map((line, idx) => (
+          <div key={idx} className="flex justify-between items-center bg-surface-900/50 p-2 rounded">
+            <div className="flex gap-2">
+              <span className="text-primary-400 font-mono">Line {String(line.lineIndex + 1).padStart(2, '0')}</span>
+              <span className="text-surface-200">{getSymbolName(line.symbol)}</span>
+              <span className="text-surface-400 text-xs self-center">x{line.count}</span>
+            </div>
+            <span className="text-green-400 font-mono">${line.payout}</span>
+          </div>
+        ))}
+        {scatterPayout && scatterPayout > 0 ? (
+          <div className="flex justify-between items-center bg-surface-900/50 p-2 rounded border border-yellow-500/20">
+            <div className="flex gap-2">
+              <span className="text-yellow-500 font-bold">Scatter</span>
+              <span className="text-surface-200">分散</span>
+              <span className="text-surface-400 text-xs self-center">Direct</span>
+            </div>
+            <span className="text-green-400 font-mono">${scatterPayout}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
+
+

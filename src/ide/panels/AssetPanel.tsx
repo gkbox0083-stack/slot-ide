@@ -21,15 +21,20 @@ export function AssetPanel() {
 
   // 頁面載入時從 localStorage 讀取素材
   useEffect(() => {
-    const stored = loadAssets();
-    if (stored) {
-      setAssets({
-        symbols: stored.symbols,
-        board: stored.board,
-        frame: stored.frame,
-        background: stored.background,
-        character: stored.character,
-      });
+    try {
+      const stored = loadAssets();
+      console.log('[AssetPanel] Loaded assets from storage:', stored);
+      if (stored) {
+        setAssets({
+          symbols: stored.symbols || {},
+          board: stored.board,
+          frame: stored.frame,
+          background: stored.background,
+          character: stored.character,
+        });
+      }
+    } catch (e) {
+      console.error('[AssetPanel] Error loading assets:', e);
     }
   }, [setAssets]);
 
@@ -49,8 +54,13 @@ export function AssetPanel() {
   // 處理 Symbol 圖片清除
   const handleSymbolRemove = (symbolId: SymbolId) => {
     if (confirm(`確定要清除 ${symbolId} 的圖片嗎？`)) {
-      removeSymbolImage(symbolId);
-      removeSymbolImageFromStore(symbolId);
+      console.log(`[AssetPanel] Removing symbol image: ${symbolId}`);
+      try {
+        removeSymbolImage(symbolId);
+        removeSymbolImageFromStore(symbolId);
+      } catch (e) {
+        console.error('[AssetPanel] Error removing symbol image:', e);
+      }
     }
   };
 
@@ -79,16 +89,26 @@ export function AssetPanel() {
       character: '人物',
     };
     if (confirm(`確定要清除 ${keyNames[key]} 嗎？`)) {
-      removeOtherAsset(key);
-      removeOtherAssetFromStore(key);
+      console.log(`[AssetPanel] Removing other asset: ${key}`);
+      try {
+        removeOtherAsset(key);
+        removeOtherAssetFromStore(key);
+      } catch (e) {
+        console.error('[AssetPanel] Error removing other asset:', e);
+      }
     }
   };
 
   // 清除所有素材
   const handleClearAll = () => {
     if (confirm('確定要清除所有素材嗎？此操作無法復原。')) {
-      clearAssets();
-      clearAllAssets();
+      console.log('[AssetPanel] Clearing all assets');
+      try {
+        clearAssets();
+        clearAllAssets();
+      } catch (e) {
+        console.error('[AssetPanel] Error clearing all assets:', e);
+      }
     }
   };
 

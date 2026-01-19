@@ -131,6 +131,163 @@ export function VisualStep() {
         </div>
       </div>
 
+      {/* 圖層位置 */}
+      <div className="panel p-4">
+        <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-4 pb-2 border-b border-surface-200 dark:border-surface-700">
+          圖層位置
+        </h3>
+
+        {/* 背景層 */}
+        <div className="mb-6">
+          <h4 className="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-3 uppercase tracking-wide">
+            🖼️ 背景
+          </h4>
+          <div className="space-y-4 pl-2 border-l-2 border-surface-300 dark:border-surface-600">
+            <Slider
+              label="X 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.backgroundTransform?.offsetX ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                backgroundTransform: {
+                  ...layout.backgroundTransform,
+                  offsetX: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="Y 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.backgroundTransform?.offsetY ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                backgroundTransform: {
+                  ...layout.backgroundTransform,
+                  offsetY: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="縮放"
+              min={0.1}
+              max={3}
+              step={0.1}
+              value={layout.backgroundTransform?.scale ?? 1}
+              onChange={(e) => updateLayoutConfig({
+                backgroundTransform: {
+                  ...layout.backgroundTransform,
+                  scale: Number(e.target.value)
+                }
+              })}
+            />
+          </div>
+        </div>
+
+        {/* 盤面層 */}
+        <div className="mb-6">
+          <h4 className="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-3 uppercase tracking-wide">
+            🎰 盤面
+          </h4>
+          <div className="space-y-4 pl-2 border-l-2 border-surface-300 dark:border-surface-600">
+            <Slider
+              label="X 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.boardContainerTransform?.offsetX ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                boardContainerTransform: {
+                  ...layout.boardContainerTransform,
+                  offsetX: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="Y 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.boardContainerTransform?.offsetY ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                boardContainerTransform: {
+                  ...layout.boardContainerTransform,
+                  offsetY: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="縮放"
+              min={0.5}
+              max={2}
+              step={0.1}
+              value={layout.boardContainerTransform?.scale ?? 1}
+              onChange={(e) => updateLayoutConfig({
+                boardContainerTransform: {
+                  ...layout.boardContainerTransform,
+                  scale: Number(e.target.value)
+                }
+              })}
+            />
+          </div>
+        </div>
+
+        {/* 人物層 */}
+        <div>
+          <h4 className="text-xs font-semibold text-surface-500 dark:text-surface-400 mb-3 uppercase tracking-wide">
+            👤 人物
+          </h4>
+          <div className="space-y-4 pl-2 border-l-2 border-surface-300 dark:border-surface-600">
+            <Slider
+              label="X 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.characterTransform?.offsetX ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                characterTransform: {
+                  ...layout.characterTransform,
+                  offsetX: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="Y 偏移"
+              min={-500}
+              max={500}
+              step={10}
+              value={layout.characterTransform?.offsetY ?? 0}
+              unit="px"
+              onChange={(e) => updateLayoutConfig({
+                characterTransform: {
+                  ...layout.characterTransform,
+                  offsetY: Number(e.target.value)
+                }
+              })}
+            />
+            <Slider
+              label="縮放"
+              min={0.1}
+              max={3}
+              step={0.1}
+              value={layout.characterTransform?.scale ?? 1}
+              onChange={(e) => updateLayoutConfig({
+                characterTransform: {
+                  ...layout.characterTransform,
+                  scale: Number(e.target.value)
+                }
+              })}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* 符號素材 */}
       <div className="panel p-4">
         <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-300 mb-4 pb-2 border-b border-surface-200 dark:border-surface-700">

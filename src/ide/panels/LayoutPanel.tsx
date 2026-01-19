@@ -7,6 +7,9 @@ const defaultLayoutConfig = {
   reelGap: 10,
   symbolScale: 1.0,
   boardScale: 1.0,
+  backgroundTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+  boardContainerTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+  characterTransform: { offsetX: 0, offsetY: 0, scale: 1 },
 };
 
 /**
@@ -129,6 +132,174 @@ export function LayoutPanel() {
           unit="x"
           hint="整個盤面的縮放比例"
         />
+      </div>
+
+      {/* 圖層位置 */}
+      <h3 className="mt-6 mb-4 text-base font-bold flex items-center gap-2 text-surface-100">
+        📍 圖層位置
+      </h3>
+      <div className="space-y-4">
+        {/* 背景層 */}
+        <div className="p-3 bg-surface-800 rounded border border-surface-700">
+          <h4 className="text-xs font-semibold text-surface-400 mb-3 uppercase tracking-wide">
+            🖼️ 背景
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">X 偏移</label>
+              <input
+                type="number"
+                value={layout.backgroundTransform?.offsetX ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  backgroundTransform: {
+                    ...layout.backgroundTransform,
+                    offsetX: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">Y 偏移</label>
+              <input
+                type="number"
+                value={layout.backgroundTransform?.offsetY ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  backgroundTransform: {
+                    ...layout.backgroundTransform,
+                    offsetY: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">縮放</label>
+              <input
+                type="number"
+                step={0.1}
+                min={0.1}
+                max={3}
+                value={layout.backgroundTransform?.scale ?? 1}
+                onChange={(e) => updateLayoutConfig({
+                  backgroundTransform: {
+                    ...layout.backgroundTransform,
+                    scale: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 盤面層 */}
+        <div className="p-3 bg-surface-800 rounded border border-surface-700">
+          <h4 className="text-xs font-semibold text-surface-400 mb-3 uppercase tracking-wide">
+            🎰 盤面
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">X 偏移</label>
+              <input
+                type="number"
+                value={layout.boardContainerTransform?.offsetX ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  boardContainerTransform: {
+                    ...layout.boardContainerTransform,
+                    offsetX: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">Y 偏移</label>
+              <input
+                type="number"
+                value={layout.boardContainerTransform?.offsetY ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  boardContainerTransform: {
+                    ...layout.boardContainerTransform,
+                    offsetY: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">縮放</label>
+              <input
+                type="number"
+                step={0.1}
+                min={0.5}
+                max={2}
+                value={layout.boardContainerTransform?.scale ?? 1}
+                onChange={(e) => updateLayoutConfig({
+                  boardContainerTransform: {
+                    ...layout.boardContainerTransform,
+                    scale: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 人物層 */}
+        <div className="p-3 bg-surface-800 rounded border border-surface-700">
+          <h4 className="text-xs font-semibold text-surface-400 mb-3 uppercase tracking-wide">
+            👤 人物
+          </h4>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">X 偏移</label>
+              <input
+                type="number"
+                value={layout.characterTransform?.offsetX ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  characterTransform: {
+                    ...layout.characterTransform,
+                    offsetX: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">Y 偏移</label>
+              <input
+                type="number"
+                value={layout.characterTransform?.offsetY ?? 0}
+                onChange={(e) => updateLayoutConfig({
+                  characterTransform: {
+                    ...layout.characterTransform,
+                    offsetY: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-surface-400 block mb-1">縮放</label>
+              <input
+                type="number"
+                step={0.1}
+                min={0.1}
+                max={3}
+                value={layout.characterTransform?.scale ?? 1}
+                onChange={(e) => updateLayoutConfig({
+                  characterTransform: {
+                    ...layout.characterTransform,
+                    scale: Number(e.target.value)
+                  }
+                })}
+                className="w-full px-2 py-1 text-sm bg-surface-900 border border-surface-600 rounded text-surface-200"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 重置按鈕 */}

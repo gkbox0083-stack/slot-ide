@@ -100,46 +100,46 @@ export function AnimationPanel() {
         <Slider
           label="滾輪轉速"
           field="spinSpeed"
-          min={1}
-          max={50}
+          min={5}
+          max={30}
           step={1}
           value={animation.spinSpeed}
-          hint="控制滾輪旋轉的速度"
+          hint="控制滾輪旋轉的速度（5-30 為安全範圍）"
         />
 
         {/* 旋轉時長 */}
         <Slider
           label="旋轉時長"
           field="spinDuration"
-          min={500}
-          max={5000}
+          min={1000}
+          max={3000}
           step={100}
           value={animation.spinDuration}
           unit="ms"
-          hint="從開始到第一輪停止的總時長"
+          hint="從開始到第一輪停止的總時長（1000-3000ms 為安全範圍）"
         />
 
         {/* 停輪間隔 */}
         <Slider
           label="停輪間隔"
           field="reelStopDelay"
-          min={50}
-          max={500}
+          min={100}
+          max={300}
           step={10}
           value={animation.reelStopDelay}
           unit="ms"
-          hint="每輪之間的停止延遲"
+          hint="每輪之間的停止延遲（100-300ms 為安全範圍）"
         />
 
         {/* 緩停力度 */}
         <Slider
           label="緩停力度"
           field="easeStrength"
-          min={0}
-          max={1}
+          min={0.2}
+          max={0.8}
           step={0.1}
           value={animation.easeStrength}
-          hint="停輪時的減速曲線強度"
+          hint="停輪時的減速曲線強度（0.2-0.8 為安全範圍）"
         />
 
         {/* 回彈力度 */}
@@ -147,10 +147,10 @@ export function AnimationPanel() {
           label="回彈力度"
           field="bounceStrength"
           min={0}
-          max={1}
+          max={0.5}
           step={0.1}
           value={animation.bounceStrength}
-          hint="停輪時的回彈效果強度"
+          hint="停輪時的回彈效果強度（0-0.5 為安全範圍）"
         />
       </div>
 

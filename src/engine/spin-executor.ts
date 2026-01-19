@@ -78,6 +78,9 @@ export class SpinExecutor {
         reelGap: 10,
         symbolScale: 1,
         boardScale: 1,
+        backgroundTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+        boardContainerTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+        characterTransform: { offsetX: 0, offsetY: 0, scale: 1 },
       },
     };
   }

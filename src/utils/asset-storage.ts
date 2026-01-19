@@ -18,21 +18,23 @@ export interface StoredAssets {
 }
 
 /**
- * 儲存素材（部分更新）
+ * 內部 helper: 讀取完整資料，若無則回詳細預設值
  */
-export function saveAssets(assets: Partial<StoredAssets>): void {
+function getStoredAssetsOrEmpty(): StoredAssets {
   const existing = loadAssets();
-  const merged: StoredAssets = {
-    symbols: { ...existing?.symbols, ...assets.symbols },
-    board: assets.board !== undefined ? assets.board : existing?.board,
-    frame: assets.frame !== undefined ? assets.frame : existing?.frame,
-    background: assets.background !== undefined ? assets.background : existing?.background,
-    character: assets.character !== undefined ? assets.character : existing?.character,
-    updatedAt: Date.now(),
+  return existing || {
+    symbols: {},
+    updatedAt: Date.now()
   };
-  
+}
+
+/**
+ * 內部 helper: 將完整資料寫入 storage
+ */
+function saveStoredAssets(data: StoredAssets): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    data.updatedAt = Date.now();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
     console.error('Failed to save assets to localStorage:', error);
     throw error;
@@ -49,6 +51,12 @@ export function loadAssets(): StoredAssets | null {
       return null;
     }
     const parsed = JSON.parse(stored) as StoredAssets;
+
+    // 確保 symbols 物件存在
+    if (!parsed.symbols) {
+      parsed.symbols = {};
+    }
+
     return parsed;
   } catch (error) {
     console.error('Failed to load assets from localStorage:', error);
@@ -72,31 +80,28 @@ export function clearAssets(): void {
  * 儲存 Symbol 圖片
  */
 export function saveSymbolImage(symbolId: SymbolId, dataUrl: string): void {
-  const existing = loadAssets();
-  const symbols = { ...existing?.symbols };
-  symbols[symbolId] = dataUrl;
-  saveAssets({ symbols });
+  const data = getStoredAssetsOrEmpty();
+  data.symbols[symbolId] = dataUrl;
+  saveStoredAssets(data);
 }
 
 /**
  * 移除 Symbol 圖片
  */
 export function removeSymbolImage(symbolId: SymbolId): void {
-  const existing = loadAssets();
-  if (!existing) {
-    return;
+  const data = getStoredAssetsOrEmpty();
+  if (data.symbols && data.symbols[symbolId]) {
+    delete data.symbols[symbolId];
+    saveStoredAssets(data);
   }
-  const symbols = { ...existing.symbols };
-  delete symbols[symbolId];
-  saveAssets({ symbols });
 }
 
 /**
- * 取得 Symbol 圖片
+ * 取得 Symbol 圖片 (helper)
  */
 export function getSymbolImage(symbolId: SymbolId): string | null {
   const assets = loadAssets();
-  if (!assets) {
+  if (!assets || !assets.symbols) {
     return null;
   }
   return assets.symbols[symbolId] || null;
@@ -109,7 +114,9 @@ export function saveOtherAsset(
   key: 'board' | 'frame' | 'background' | 'character',
   dataUrl: string
 ): void {
-  saveAssets({ [key]: dataUrl });
+  const data = getStoredAssetsOrEmpty();
+  data[key] = dataUrl;
+  saveStoredAssets(data);
 }
 
 /**
@@ -118,7 +125,11 @@ export function saveOtherAsset(
 export function removeOtherAsset(
   key: 'board' | 'frame' | 'background' | 'character'
 ): void {
-  saveAssets({ [key]: undefined });
+  const data = getStoredAssetsOrEmpty();
+  if (data[key] !== undefined) {
+    delete data[key];
+    saveStoredAssets(data);
+  }
 }
 
 /**
@@ -132,15 +143,15 @@ export function fileToDataUrl(file: File): Promise<string> {
       return;
     }
 
-    // 檢查檔案大小（建議 < 500KB）
-    const maxSize = 500 * 1024; // 500KB
+    // 檢查檔案大小（建議 < 2MB，放寬限制以免太容易失敗）
+    const maxSize = 2 * 1024 * 1024; // 2MB
     if (file.size > maxSize) {
-      reject(new Error(`File size exceeds ${maxSize / 1024}KB limit`));
+      reject(new Error(`File size exceeds ${maxSize / 1024 / 1024}MB limit`));
       return;
     }
 
     const reader = new FileReader();
-    
+
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         resolve(reader.result);
@@ -148,11 +159,11 @@ export function fileToDataUrl(file: File): Promise<string> {
         reject(new Error('Failed to read file as data URL'));
       }
     };
-    
+
     reader.onerror = () => {
       reject(new Error('Failed to read file'));
     };
-    
+
     reader.readAsDataURL(file);
   });
 }

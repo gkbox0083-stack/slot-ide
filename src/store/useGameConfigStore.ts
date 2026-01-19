@@ -194,6 +194,10 @@ export const defaultVisualConfig: VisualConfig = {
     reelGap: 10,
     symbolScale: 1,
     boardScale: 1,
+    // 圖層變換預設值
+    backgroundTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+    boardContainerTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+    characterTransform: { offsetX: 0, offsetY: 0, scale: 1 },
   },
 };
 
@@ -307,7 +311,9 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
         })),
       removeSymbolImage: (symbolId) =>
         set((state) => {
-          const symbols = { ...state.assets.symbols };
+          console.log('[Store] removeSymbolImage', symbolId);
+          // Safely access symbols, defaulting to empty object if assets or symbols is undefined
+          const symbols = { ...(state.assets?.symbols || {}) };
           delete symbols[symbolId];
           return {
             assets: {
@@ -322,11 +328,15 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
         })),
       removeOtherAsset: (key) =>
         set((state) => {
-          const newAssets = { ...state.assets };
+          console.log('[Store] removeOtherAsset', key);
+          const newAssets = { ...(state.assets || {}) };
           delete newAssets[key];
           return { assets: newAssets };
         }),
-      clearAllAssets: () => set({ assets: {} }),
+      clearAllAssets: () => {
+        console.log('[Store] clearAllAssets');
+        set({ assets: {} });
+      },
 
       // SpinPacket
       setCurrentSpinPacket: (packet) => set({ currentSpinPacket: packet }),

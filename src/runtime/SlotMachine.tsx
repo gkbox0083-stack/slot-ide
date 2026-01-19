@@ -87,6 +87,9 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
         reelGap: 10,
         symbolScale: 1,
         boardScale: 1,
+        backgroundTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+        boardContainerTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+        characterTransform: { offsetX: 0, offsetY: 0, scale: 1 },
       },
     };
 
@@ -376,6 +379,7 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
     };
 
     // 背景層（z-index: 0）
+    const bgTransform = visual.layout.backgroundTransform || { offsetX: 0, offsetY: 0, scale: 1 };
     const backgroundStyle: React.CSSProperties = {
       position: 'absolute',
       top: 0,
@@ -387,12 +391,15 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
+      transform: `translate(${bgTransform.offsetX}px, ${bgTransform.offsetY}px) scale(${bgTransform.scale})`,
+      transformOrigin: 'center',
     };
 
     // 盤面容器（包含 board 底圖和 reels）- 從中心縮放
+    const boardTransform = visual.layout.boardContainerTransform || { offsetX: 0, offsetY: 0, scale: 1 };
     const boardContainerStyle: React.CSSProperties = {
       position: 'relative',
-      transform: `scale(${visual.layout.boardScale})`,
+      transform: `translate(${boardTransform.offsetX}px, ${boardTransform.offsetY}px) scale(${visual.layout.boardScale * boardTransform.scale})`,
       transformOrigin: 'center',
       width: boardWidth / visual.layout.boardScale,
       height: boardHeight / visual.layout.boardScale,
@@ -437,17 +444,20 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
     };
 
     // 人物層（z-index: 4）
+    const charTransform = visual.layout.characterTransform || { offsetX: 0, offsetY: 0, scale: 1 };
     const characterStyle: React.CSSProperties = {
       position: 'absolute',
-      top: 0,
+      top: '50%',
       right: 0,
       width: 'auto',
-      height: '100%',
+      height: 'auto',
       zIndex: 4,
       display: assets?.character ? 'flex' : 'none',
       alignItems: 'center',
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
       pointerEvents: 'none',
+      transform: `translate(${charTransform.offsetX}px, calc(-50% + ${charTransform.offsetY}px)) scale(${charTransform.scale})`,
+      transformOrigin: 'center',
     };
 
     // 中獎線 SVG（z-index: 5）- 使用未縮放尺寸

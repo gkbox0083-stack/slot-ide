@@ -10,18 +10,18 @@ export interface IDEState {
   // === 盤池狀態 ===
   isPoolsBuilt: boolean;
   poolStatus: PoolStatus[];
-  
+
   // === Spin 狀態 ===
   currentSpinPacket: SpinPacket | null;
   isSpinning: boolean;
-  
+
   // === UI 狀態 ===
   activeTab: 'math' | 'visual' | 'control' | 'assets';
-  
+
   // === 遊戲參數 ===
   baseBet: number;
   simulationCount: number;
-  
+
   // === Simulation 狀態 ===
   simulationConfig: {
     count: number;  // 預設 1000
@@ -29,10 +29,10 @@ export interface IDEState {
   simulationResult: SimulationResult | null;
   isSimulating: boolean;
   simulationProgress: number;  // 0-1
-  
+
   // === 視覺參數 ===
   visualConfig: VisualConfig;
-  
+
   // === 素材 ===
   assets: AssetsPatch;
 }
@@ -67,18 +67,18 @@ const initialState: IDEState = {
   // 盤池狀態
   isPoolsBuilt: false,
   poolStatus: [],
-  
+
   // Spin 狀態
   currentSpinPacket: null,
   isSpinning: false,
-  
+
   // UI 狀態
   activeTab: 'control',
-  
+
   // 遊戲參數
   baseBet: 1,
   simulationCount: 100,
-  
+
   // Simulation 狀態
   simulationConfig: {
     count: 1000,
@@ -86,7 +86,7 @@ const initialState: IDEState = {
   simulationResult: null,
   isSimulating: false,
   simulationProgress: 0,
-  
+
   // 視覺參數
   visualConfig: {
     animation: {
@@ -100,9 +100,12 @@ const initialState: IDEState = {
       reelGap: 10,
       symbolScale: 1,
       boardScale: 1,
+      backgroundTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+      boardContainerTransform: { offsetX: 0, offsetY: 0, scale: 1 },
+      characterTransform: { offsetX: 0, offsetY: 0, scale: 1 },
     },
   },
-  
+
   // 素材
   assets: {},
 };
@@ -118,31 +121,31 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
         isPoolsBuilt: true,
         poolStatus: action.payload.status,
       };
-    
+
     case 'SET_SPIN_PACKET':
       return {
         ...state,
         currentSpinPacket: action.payload,
       };
-    
+
     case 'SET_SPINNING':
       return {
         ...state,
         isSpinning: action.payload,
       };
-    
+
     case 'SET_ACTIVE_TAB':
       return {
         ...state,
         activeTab: action.payload,
       };
-    
+
     case 'SET_BASE_BET':
       return {
         ...state,
         baseBet: action.payload,
       };
-    
+
     case 'SET_SIMULATION_COUNT':
       return {
         ...state,
@@ -152,25 +155,25 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
           count: action.payload,
         },
       };
-    
+
     case 'SET_SIMULATION_RESULT':
       return {
         ...state,
         simulationResult: action.payload,
       };
-    
+
     case 'SET_IS_SIMULATING':
       return {
         ...state,
         isSimulating: action.payload,
       };
-    
+
     case 'SET_SIMULATION_PROGRESS':
       return {
         ...state,
         simulationProgress: action.payload,
       };
-    
+
     case 'RESET_SIMULATION':
       return {
         ...state,
@@ -178,19 +181,19 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
         isSimulating: false,
         simulationProgress: 0,
       };
-    
+
     case 'SET_VISUAL_CONFIG':
       return {
         ...state,
         visualConfig: action.payload,
       };
-    
+
     case 'SET_ASSETS':
       return {
         ...state,
         assets: action.payload,
       };
-    
+
     case 'SET_SYMBOL_IMAGE': {
       const symbols = { ...state.assets.symbols };
       symbols[action.symbolId] = action.dataUrl;
@@ -202,7 +205,7 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
         },
       };
     }
-    
+
     case 'REMOVE_SYMBOL_IMAGE': {
       const symbols = { ...state.assets.symbols };
       delete symbols[action.symbolId];
@@ -214,7 +217,7 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
         },
       };
     }
-    
+
     case 'SET_OTHER_ASSET':
       return {
         ...state,
@@ -223,7 +226,7 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
           [action.key]: action.dataUrl,
         },
       };
-    
+
     case 'REMOVE_OTHER_ASSET': {
       const newAssets = { ...state.assets };
       delete newAssets[action.key];
@@ -232,19 +235,19 @@ function ideReducer(state: IDEState, action: IDEAction): IDEState {
         assets: newAssets,
       };
     }
-    
+
     case 'CLEAR_ALL_ASSETS':
       return {
         ...state,
         assets: {},
       };
-    
+
     case 'LOAD_ASSETS':
       return {
         ...state,
         assets: action.assets,
       };
-    
+
     default:
       return state;
   }
