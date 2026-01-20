@@ -1,5 +1,13 @@
 # P1-04 Free Spin 機制實作
 
+> **⚠️ 已過時 (DEPRECATED)**
+>
+> 此任務文件已於 V3 簡化版中標記為過時。
+> V3 版本移除了 Free Spin 機制，改為 Scatter 直接賦值模式。
+> 保留此文件僅供歷史參考。
+
+---
+
 ## 目標 (Objective)
 
 實作完整的 Free Spin 機制，包括：

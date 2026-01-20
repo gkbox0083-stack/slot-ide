@@ -19,6 +19,7 @@ export interface ReelProps {
     bounceStrength: number;         // 回彈力度 (0-1)
     reelStopDelay?: number;         // 停輪間隔 (ms) - 傳入用於計算所需高度
   };
+  reelIndex?: number;               // 輪子索引（0-4），用於計算該輪的實際 spinning 時長
   symbolSize?: number;              // 符號尺寸（預設 100）
   symbolScale?: number;             // 符號縮放（預設 1，僅影響符號視覺大小）
   rows?: number;                    // 顯示行數（預設 3，支援 5x4 為 4）
@@ -87,6 +88,8 @@ export function Reel({
   symbolWeights,
   assets,
   animation,
+  // reelIndex 目前未使用，保留用於未來擴展
+  reelIndex: _reelIndex = 0,
   symbolSize = 100,
   symbolScale = 1,
   rows = 3,
@@ -102,7 +105,9 @@ export function Reel({
   // ===== Refs =====
   const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number | null>(null);
   const currentOffsetRef = useRef(0);
+  const currentSpeedRef = useRef(0);  // 追蹤當前速度，用於 stopping 階段銜接
   const prevStateRef = useRef<string>(state);
 
   // 緩存「當前應顯示的符號」，避免第一幀暴露新結果
@@ -197,6 +202,8 @@ export function Reel({
 
   /**
    * 開始滾動
+   * 簡化版本：等速旋轉，速度由 spinSpeed 控制
+   * 速度匹配在 handleStopTrigger 中通過動態調整 CSS transition 時長實現
    */
   const startSpin = useCallback(() => {
     // 生成 Unified Strip
@@ -206,17 +213,28 @@ export function Reel({
     const { prevStart } = stripInfoRef.current;
     const initialOffset = prevStart * symbolHeight;
 
-    startTimeRef.current = performance.now();
+    const now = performance.now();
+    startTimeRef.current = now;
+    lastFrameTimeRef.current = now;
     currentOffsetRef.current = initialOffset;
     setOffset(initialOffset);
 
-    const animate = () => {
-      const now = performance.now();
-      const elapsed = now - (startTimeRef.current || now);
-      const speed = animation.spinSpeed * 0.15;
+    // 基礎速度 (px/ms)
+    const baseSpeed = animation.spinSpeed * 0.15;
 
-      // offset 減少，符號條往下移，符號從上往下滾
-      const newOffset = initialOffset - (elapsed * speed);
+    const animate = () => {
+      const currentTime = performance.now();
+      const deltaTime = currentTime - (lastFrameTimeRef.current || currentTime);
+      lastFrameTimeRef.current = currentTime;
+
+      // 等速旋轉，速度完全由 spinSpeed 控制
+      const currentSpeed = baseSpeed;
+
+      // 追蹤當前速度（用於 stopping 階段銜接）
+      currentSpeedRef.current = currentSpeed;
+
+      // 使用增量計算更新位置
+      const newOffset = currentOffsetRef.current - (currentSpeed * deltaTime);
 
       currentOffsetRef.current = newOffset;
       setOffset(newOffset);
@@ -228,46 +246,110 @@ export function Reel({
 
   /**
    * 停止滾動（觸發減速動畫）
+   *
+   * 同時解決兩個問題：
+   * 1. 避免圖示跳變：finalTargetOffset 必須是正確的停止位置
+   * 2. 速度匹配：CSS transition 的初始速度必須匹配 spinning 速度
+   *
+   * 策略：
+   * - 如果 scrollDistance 在合理範圍內（≤500px），直接用 CSS transition
+   * - 如果 scrollDistance 太大，先用 JS 橋接動畫滾動到接近目標的位置，
+   *   再用 CSS transition 完成最後一段
    */
   const handleStopTrigger = useCallback(() => {
+    // 獲取 spinning 結束時的實際速度
+    const spinningSpeed = currentSpeedRef.current;
+
+    // 先取消 spinning 動畫
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     }
 
-    const currentPos = currentOffsetRef.current;
-
-    // 計算目標位置：newFinal 的起始位置
+    // 計算目標位置：newFinal 的起始位置（這是正確的停止位置，不能改變）
     const { paddingLength } = stripInfoRef.current;
     const targetOffset = paddingLength * symbolHeight;
 
-    // 確保目標位置在當前位置之前（因為 offset 減少）
-    // 並確保至少滾動一些距離
-    const minTargetOffset = currentPos - symbolHeight * 2;
+    // 計算當前位置
+    const currentPos = currentOffsetRef.current;
+
+    // 使用原來的邏輯計算 finalTargetOffset（確保正確停止位置）
+    const minTargetOffset = currentPos - symbolHeight * 2;  // 至少滾動 2 個符號
     const finalTargetOffset = Math.min(targetOffset, minTargetOffset);
 
-    // 計算減速時長（基於 easeStrength）
-    const stopDuration = 0.5 + (animation.easeStrength * 1.0);
+    // 計算總滾動距離
+    const totalScrollDistance = Math.abs(currentPos - finalTargetOffset);
 
-    // cubic-bezier 曲線計算
+    // CSS transition 能處理的最大滾動距離（超過這個值需要橋接動畫）
+    const maxCssScroll = symbolHeight * 5;  // 500px
+
+    // cubic-bezier 參數
     const p1x = 0.1;
     const p1y = 0.5 + (animation.easeStrength * 0.3);
     const p2x = 0.2 + (animation.bounceStrength * 0.1);
     const p2y = 1 + (animation.bounceStrength * 0.6);
-    const bezierCurve = `cubic-bezier(${p1x}, ${p1y}, ${p2x}, ${p2y})`;
+    const bezierInitialSlope = p1y / p1x;
 
-    // 先切換至靜止座標，清除任何殘留動畫
-    setIsStopping(false);
-    setOffset(currentPos);
+    // 啟動 CSS transition 的函數
+    const startCssTransition = (fromPos: number, toPos: number, fromSpeed: number) => {
+      const cssScrollDistance = Math.abs(fromPos - toPos);
 
-    // 強制重繪後套用過渡動畫 (Reflow Reset)
-    requestAnimationFrame(() => {
+      // 動態計算時長，確保初始速度匹配
+      let stopDuration: number;
+      if (fromSpeed > 0 && cssScrollDistance > 0) {
+        stopDuration = (cssScrollDistance * bezierInitialSlope) / (fromSpeed * 1000);
+      } else {
+        stopDuration = 0.5 + (animation.easeStrength * 1.0);
+      }
+
+      const bezierCurve = `cubic-bezier(${p1x.toFixed(3)}, ${p1y.toFixed(3)}, ${p2x.toFixed(3)}, ${p2y.toFixed(3)})`;
+
+      setIsStopping(false);
+      setOffset(fromPos);
+
       requestAnimationFrame(() => {
         setIsStopping(true);
-        setTransitionStyle(`transform ${stopDuration}s ${bezierCurve}`);
-        setOffset(finalTargetOffset);
+        setTransitionStyle(`transform ${stopDuration.toFixed(3)}s ${bezierCurve}`);
+        setOffset(toPos);
       });
-    });
+    };
+
+    // 判斷是否需要橋接動畫
+    if (totalScrollDistance <= maxCssScroll) {
+      // 滾動距離在合理範圍內，直接使用 CSS transition
+      startCssTransition(currentPos, finalTargetOffset, spinningSpeed);
+    } else {
+      // 滾動距離太大，使用橋接動畫先滾動到接近目標的位置
+      // 橋接動畫結束位置：finalTargetOffset + maxCssScroll（留 500px 給 CSS transition）
+      const bridgeEndPos = finalTargetOffset + maxCssScroll;
+
+      const bridgeSpeed = spinningSpeed;
+      let bridgeStartTime = performance.now();
+
+      const bridgeAnimate = () => {
+        const now = performance.now();
+        const deltaTime = now - bridgeStartTime;
+        bridgeStartTime = now;
+
+        // 計算新位置
+        const newPos = currentOffsetRef.current - (bridgeSpeed * deltaTime);
+        currentOffsetRef.current = newPos;
+        setOffset(newPos);
+
+        // 檢查是否到達橋接結束位置
+        if (newPos <= bridgeEndPos) {
+          // 橋接動畫結束，開始 CSS transition
+          currentOffsetRef.current = bridgeEndPos;
+          startCssTransition(bridgeEndPos, finalTargetOffset, bridgeSpeed);
+        } else {
+          // 繼續橋接動畫
+          requestRef.current = requestAnimationFrame(bridgeAnimate);
+        }
+      };
+
+      // 開始橋接動畫
+      requestRef.current = requestAnimationFrame(bridgeAnimate);
+    }
   }, [animation.easeStrength, animation.bounceStrength, symbolHeight]);
 
   /**

@@ -1,7 +1,10 @@
-# slot-ide 架構規格書 V2（README_ARCHITECTURE.md）
+# slot-ide 架構規格書 V3（README_ARCHITECTURE.md）
 
 本文件是專案的「北極星」，定義產品應該長什麼樣子。
 所有設計決策衝突，以本文件為最終裁決依據。
+
+> **V3 簡化版說明**：經過 P2 階段的重新設計，移除 Free Spin 機制，
+> 改為 Scatter 直接賦值模式。移除 NG/FG 分離，改為單一 Outcome 列表。
 
 ---
 
@@ -11,8 +14,8 @@
 - 單頁 Slot IDE 工具
 - 內建 Runtime Renderer
 - 面向 Slot 遊戲設計師與數學驗證人員
-- 支援 Wild/Scatter/Free Spin 等進階機制
-- 提供用戶系統與雲端模板管理
+- 支援 Wild/Scatter 符號
+- 提供用戶系統與雲端模板管理（P3 實作）
 
 ### 不是什麼
 - 不是正式遊戲產品
@@ -26,7 +29,7 @@
 ### 技術棧
 - Vite + React + TypeScript
 - 單一 SPA（Single Page Application）
-- Firebase（Auth + Firestore + Storage）
+- Firebase（Auth + Firestore + Storage）— P3 實作
 - Zustand 狀態管理
 - 本地儲存（localStorage）用於訪客模式
 
@@ -34,15 +37,14 @@
 
 ```
 slot-ide/
-├── AI_GUIDE.md              # AI 指南
+├── AI_GUIDE.md              # AI 指南 V3
 ├── README_ARCHITECTURE.md   # 本文件（北極星）
 ├── PRD_SLOT_IDE_V2.md       # 產品需求規格書
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json
 ├── index.html
-├── prompts/                 # Cursor 執行任務文件
-│   ├── P0-01_rule_mdc_update.md
+├── prompts/                 # 任務文件
 │   ├── P1-01_type_definitions.md
 │   └── ...
 └── src/
@@ -51,25 +53,22 @@ slot-ide/
     │
     ├── types/               # 型別定義（合約層）
     │   ├── index.ts
-    │   ├── spin-packet.ts   # SpinPacket v2 主合約
-    │   ├── outcome.ts       # Outcome 定義（含 GamePhase）
+    │   ├── spin-packet.ts   # SpinPacket v3 主合約
+    │   ├── outcome.ts       # Outcome 定義（單一列表）
     │   ├── symbol.ts        # Symbol 定義（含 Wild/Scatter）
     │   ├── board.ts         # Board 定義（支援 5x3/5x4）
     │   ├── lines.ts         # Lines 定義
-    │   ├── visual.ts        # VisualConfig + AssetsPatch
-    │   ├── free-spin.ts     # Free Spin 型別
-    │   ├── template.ts      # 模板型別
-    │   └── user.ts          # 用戶型別
+    │   └── visual.ts        # VisualConfig + AssetsPatch
     │
     ├── engine/              # Math Engine（數學層）
     │   ├── index.ts
     │   ├── outcome-manager.ts
     │   ├── symbol-manager.ts
     │   ├── lines-manager.ts
-    │   ├── pool-builder.ts  # 支援 NG/FG Pool
-    │   ├── spin-executor.ts # 支援 Free Spin 流程
-    │   ├── settlement.ts    # 支援 Wild 結算
-    │   └── rtp-calculator.ts # NG/FG RTP 分開計算
+    │   ├── pool-builder.ts  # 單一 Pool（均勻分布）
+    │   ├── spin-executor.ts # 單次 Spin 執行
+    │   ├── settlement.ts    # Wild 結算 + Scatter 直接賦值
+    │   └── rtp-calculator.ts # RTP 計算（Line + Scatter）
     │
     ├── runtime/             # Runtime Renderer（渲染層）
     │   ├── index.ts
@@ -80,12 +79,12 @@ slot-ide/
     ├── ide/                 # IDE 介面（UI 層）
     │   ├── index.ts
     │   ├── layout/
-    │   │   ├── IDELayout.tsx      # 三欄式主佈局
-    │   │   ├── ControlPanel.tsx   # 左側控制面板
-    │   │   ├── GameControl.tsx    # 右側遊戲控制
-    │   │   └── StatisticsPanel.tsx # 底部統計區
+    │   │   ├── IDELayoutV2.tsx   # 三欄式主佈局
+    │   │   ├── ControlPanelV2.tsx
+    │   │   ├── GameControlV2.tsx
+    │   │   └── StatisticsPanelV2.tsx
     │   └── panels/
-    │       ├── OutcomePanel.tsx   # NG/FG 切換
+    │       ├── OutcomePanel.tsx   # 單一 Outcome 列表
     │       ├── SymbolPanel.tsx    # Wild/Scatter 設定
     │       ├── LinesPanel.tsx     # 視覺化線路編輯
     │       ├── AnimationPanel.tsx
@@ -94,34 +93,25 @@ slot-ide/
     │       ├── PoolPanel.tsx
     │       ├── BettingPanel.tsx
     │       ├── SimulationPanel.tsx
-    │       ├── HistoryPanel.tsx
-    │       └── FreeSpinPanel.tsx
+    │       └── HistoryPanel.tsx
     │
     ├── analytics/           # 統計分析
     │   ├── index.ts
-    │   ├── simulator.ts     # 支援堆疊/比較模式
+    │   ├── simulator.ts
     │   ├── charts.tsx
-    │   ├── csv-export.ts
-    │   └── validation.ts    # 數值驗證工具
+    │   └── csv-export.ts
     │
     ├── store/               # 狀態管理
     │   ├── index.ts
-    │   ├── useGameConfigStore.ts
+    │   ├── useGameConfigStore.ts  # V3 版本
     │   ├── useUIStore.ts
-    │   ├── useAuthStore.ts
-    │   ├── useFreeSpinStore.ts
-    │   ├── useSimulationStore.ts
-    │   └── useTemplateStore.ts
+    │   └── useSimulationStore.ts
     │
-    ├── firebase/            # Firebase 整合
+    ├── firebase/            # Firebase 整合（P3 實作）
     │   ├── config.ts
     │   ├── auth.ts
     │   ├── firestore.ts
     │   └── storage.ts
-    │
-    ├── pages/               # 頁面
-    │   ├── Dashboard.tsx
-    │   └── Editor.tsx
     │
     └── utils/               # 工具函式
         ├── index.ts
@@ -132,16 +122,16 @@ slot-ide/
 
 ## 三、核心資料合約
 
-### SpinPacket v2（唯一主幹）
+### SpinPacket v3（唯一主幹）
 
 ```typescript
 interface SpinPacket {
-  version: "2";
+  version: '2' | '3';        // 支援向下相容
   board: Board;              // 5x3 或 5x4 盤面
   visual: VisualConfig;      // 動畫參數
   assets?: AssetsPatch;      // 素材覆蓋
   meta?: SettlementMeta;     // 結算資訊
-  freeSpinState?: FreeSpinState; // Free Spin 狀態
+  isDemo?: boolean;          // 展示模式
 }
 ```
 
@@ -164,7 +154,7 @@ interface Board {
 type SymbolId = string;      // 例如 "H1", "H2", "WILD", "SCATTER"
 ```
 
-### Symbol（擴展版）
+### Symbol（V3 版本）
 
 ```typescript
 type SymbolType = 'normal' | 'wild' | 'scatter';
@@ -175,12 +165,14 @@ interface WildConfig {
   canReplaceSpecial: boolean;  // 預設 false
 }
 
-interface ScatterConfig {
-  triggerCount: number;        // 觸發所需數量（預設 3）
-  freeSpinCount: number;       // 給予的 Free Spin 次數
-  enableRetrigger: boolean;    // 是否支援 Retrigger
-  enableMultiplier: boolean;   // 是否啟用 Multiplier
-  multiplierValue: number;     // Multiplier 倍率
+interface ScatterPayoutConfig {
+  minCount: number;            // 最少需要幾個（預設 3）
+  payoutByCount: {             // 根據數量直接給分（倍率）
+    3?: number;
+    4?: number;
+    5?: number;
+    6?: number;                // 支援 5x4 盤面
+  };
 }
 
 interface SymbolDefinition {
@@ -193,36 +185,32 @@ interface SymbolDefinition {
     match4: number;
     match5: number;
   };
-  // 雙層機率模型
-  appearanceWeight: number;    // 視覺層：滾動動畫用
-  ngWeight: number;            // 數學層：NG Pool 生成用
-  fgWeight: number;            // 數學層：FG Pool 生成用
+  // 視覺層權重
+  appearanceWeight: number;    // 只用於滾動動畫
+  // @deprecated 以下欄位保留供向下相容，不影響 Pool 生成
+  ngWeight: number;
+  fgWeight: number;
   // 特殊符號設定
   wildConfig?: WildConfig;
-  scatterConfig?: ScatterConfig;
+  scatterPayoutConfig?: ScatterPayoutConfig;
 }
 ```
 
-### Outcome（支援 NG/FG）
+### Outcome（V3 簡化版）
 
 ```typescript
-type GamePhase = 'ng' | 'fg';
-
 interface Outcome {
   id: string;
   name: string;
-  phase: GamePhase;
   multiplierRange: {
     min: number;
     max: number;
   };
-  weight: number;
+  weight: number;              // 抽中權重
 }
 
-interface OutcomeConfig {
-  ngOutcomes: Outcome[];
-  fgOutcomes: Outcome[];
-}
+// V3: 單一列表，不再區分 NG/FG
+type OutcomeConfig = Outcome[];
 ```
 
 ### Lines
@@ -254,6 +242,9 @@ interface VisualConfig {
     reelGap: number;
     symbolScale: number;
     boardScale: number;
+    backgroundTransform?: { offsetX: number; offsetY: number; scale: number };
+    boardContainerTransform?: { offsetX: number; offsetY: number; scale: number };
+    characterTransform?: { offsetX: number; offsetY: number; scale: number };
   };
 }
 ```
@@ -270,7 +261,7 @@ interface AssetsPatch {
 }
 ```
 
-### SettlementMeta（擴展版）
+### SettlementMeta（V3 版本）
 
 ```typescript
 interface WinningLine {
@@ -285,38 +276,14 @@ interface WinningLine {
 
 interface SettlementMeta {
   outcomeId: string;
-  phase: 'ng' | 'fg';
-  win: number;
-  multiplier: number;
+  phase: 'base';               // V3: 固定為 'base'
+  win: number;                 // 連線 + Scatter 總分
+  multiplier: number;          // V3: 固定為 1
   winningLines: WinningLine[];
   bestLine?: WinningLine;
   scatterCount: number;
-  triggeredFreeSpin: boolean;
-}
-```
-
-### FreeSpinState
-
-```typescript
-type FreeSpinMode = 'base' | 'free';
-
-interface FreeSpinConfig {
-  enabled: boolean;
-  triggerCount: number;
-  baseSpinCount: number;
-  enableRetrigger: boolean;
-  retriggerSpinCount: number;
-  enableMultiplier: boolean;
-  multiplierValue: number;
-}
-
-interface FreeSpinState {
-  mode: FreeSpinMode;
-  remainingSpins: number;
-  totalSpins: number;
-  accumulatedWin: number;
-  currentMultiplier: number;
-  triggerCount: number;
+  scatterPayout?: number;      // V3 新增：Scatter 直接得分
+  triggeredFreeSpin: boolean;  // V3: 永遠為 false
 }
 ```
 
@@ -328,13 +295,13 @@ interface FreeSpinState {
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  雙層機率模型                                                │
+│  雙層機率模型（V3 版本）                                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  【數學層】→ 影響 RTP                                        │
-│  ├─ Outcome 權重：決定抽中哪個倍率區間                        │
-│  ├─ Symbol ngWeight/fgWeight：Pool 生成時使用                │
-│  └─ Pool 生成：基於 Outcome 倍率區間生成盤面                  │
+│  ├─ Outcome 權重：直接決定抽中哪個倍率區間                    │
+│  ├─ Pool 生成：均勻分布（不使用符號權重）                     │
+│  └─ Scatter 賦值表：根據數量直接給分                         │
 │                                                             │
 │  【視覺層】→ 不影響 RTP                                      │
 │  └─ Symbol appearanceWeight：只影響滾動動畫中的符號分布       │
@@ -344,27 +311,23 @@ interface FreeSpinState {
 
 ### 關鍵原則
 
-- Pool Builder 只根據 Outcome 倍率區間和 Symbol Payouts 生成盤面
+- Pool Builder 使用**均勻分布**，不使用 ngWeight/fgWeight
 - `appearanceWeight` 只用於 Runtime 滾動動畫
-- RTP 計算只看數學層
+- RTP 計算 = Line RTP + Scatter RTP
 
 ---
 
-## 五、RTP 計算公式
+## 五、RTP 計算公式（V3 版本）
 
-### 業界標準公式
+### 理論 RTP
 
 ```
-總 RTP = NG RTP + FG RTP 貢獻
+總 RTP = Line RTP + Scatter RTP
 
-FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
+Line RTP = Σ(Outcome 權重 × 平均倍率) × 100%
 
-其中：
-- P(觸發FG) = Scatter >= N 的機率
-- E[FG 總獎金] = 預期 Free Spin 次數 × 平均每次 FG 獎金 × Multiplier
-
-預期 Free Spin 次數（含 Retrigger）：
-= 初始次數 / (1 - 初始次數 × P(Retrigger))
+Scatter RTP = Σ(P(count) × payout[count]) × 100%
+其中 P(count) = 二項分布機率，基於均勻分布
 ```
 
 ---
@@ -373,7 +336,7 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
 
 | 模組 | 可以做 | 不可以做 |
 |------|--------|----------|
-| **Math Engine** | 產生盤面、結算、管理盤池、Wild 替代邏輯、Free Spin 觸發 | 處理動畫、修改 UI |
+| **Math Engine** | 產生盤面（均勻分布）、結算、管理盤池、Wild 替代邏輯、Scatter 直接賦值 | 處理動畫、修改 UI |
 | **Runtime Renderer** | 播放動畫、渲染盤面、使用 appearanceWeight 顯示滾動符號 | 生成盤面、計算結果、有 RNG |
 | **IDE UI** | 收集參數、觸發動作、顯示結果 | 直接修改 Engine 或 Renderer 內部狀態 |
 | **Analytics** | 批次呼叫 Engine、統計、匯出 | 自己實作 spin 邏輯 |
@@ -391,9 +354,9 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
        │ 參數
        ▼
 ┌─────────────┐
-│ Math Engine │  產生結果（含 Wild 結算、Free Spin 判定）
+│ Math Engine │  產生結果（含 Wild 結算、Scatter 直接賦值）
 └──────┬──────┘
-       │ SpinPacket v2
+       │ SpinPacket v3
        ▼
 ┌─────────────┐
 │  Runtime    │  播放動畫
@@ -419,28 +382,22 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
 
 ---
 
-## 九、Free Spin 流程
+## 九、Scatter 直接賦值規則（V3 新增）
 
-```
-┌─────────────┐     觸發條件達成      ┌─────────────┐
-│  BASE GAME  │ ─────────────────→ │  FREE GAME  │
-│    (NG)     │                     │    (FG)     │
-└─────────────┘ ←───────────────── └─────────────┘
-                  Free Spin 用完
-```
+### 結算邏輯
 
-### 詳細流程
+1. 計算盤面上 Scatter 符號的數量
+2. 如果數量 >= `scatterPayoutConfig.minCount`
+3. 根據數量從 `payoutByCount` 查表取得倍率
+4. 最終得分 = 倍率 × baseBet
 
-1. [NG] 玩家按 SPIN
-2. [NG] 抽取 NG Outcome → 從 NG Pool 取盤面
-3. [NG] 結算（檢查是否有 Scatter 觸發）
-4. [NG] 如果 Scatter >= triggerCount：切換到 FG 模式
-5. [FG] 自動執行 Free Spin
-6. [FG] 抽取 FG Outcome → 從 FG Pool 取盤面
-7. [FG] 結算（獎金 × Multiplier）
-8. [FG] 檢查 Retrigger
-9. [FG] 剩餘次數 > 0 → 回到步驟 5
-10. [FG] 剩餘次數 = 0 → 返回 NG 模式
+### 與 Free Spin 的差異
+
+| 項目 | V2 Free Spin | V3 直接賦值 |
+|------|--------------|-------------|
+| 機制 | 觸發額外遊戲回合 | 直接給分 |
+| 複雜度 | 高（需要狀態機） | 低（單次結算） |
+| RTP 計算 | 需要計算預期價值 | 直接套用賠率表 |
 
 ---
 
@@ -451,8 +408,9 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
 3. **禁止第二套 RNG** — Runtime 不得有亂數
 4. **禁止第二套合約** — SpinPacket 是唯一介面
 5. **禁止第二套 Wild 邏輯** — 只能在 settlement.ts
-6. **禁止 NG/FG Pool 混用** — 必須分開
-7. **禁止暫時方案** — 不做「之後再改」的設計
+6. **禁止暫時方案** — 不做「之後再改」的設計
+7. **禁止符號權重影響 Pool** — Pool 生成必須使用均勻分布
+8. **禁止重新加入 Free Spin** — V3 已移除此機制
 
 ---
 
@@ -462,10 +420,11 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
 |------|------|------|
 | 1.0 | 2025-01-02 | 初始版本，完整架構定義 |
 | 2.0 | 2026-01-07 | V2 版本，新增 Wild/Scatter/Free Spin、NG/FG 分離、Firebase |
+| 3.0 | 2026-01-20 | V3 簡化版，移除 Free Spin、移除 NG/FG 分離、Scatter 改為直接賦值 |
 
 ---
 
-## 附錄：Store 規格
+## 附錄：Store 規格（V3 版本）
 
 ### useGameConfigStore
 
@@ -473,37 +432,16 @@ FG RTP 貢獻 = P(觸發FG) × E[FG 總獎金] / Bet
 interface GameConfigState {
   gameName: string;
   baseBet: number;
+  balance: number;
   boardConfig: BoardConfig;
   symbols: SymbolDefinition[];
-  outcomeConfig: OutcomeConfig;
+  outcomes: Outcome[];          // V3: 單一列表
   linesConfig: LinesConfig;
   visualConfig: VisualConfig;
-  freeSpinConfig: FreeSpinConfig;
   assets: AssetsPatch;
   currentSpinPacket: SpinPacket | null;
-}
-```
-
-### useFreeSpinStore
-
-```typescript
-interface FreeSpinStoreState {
-  mode: FreeSpinMode;
-  remainingSpins: number;
-  totalSpins: number;
-  accumulatedWin: number;
-  currentMultiplier: number;
-  history: FreeSpinResult[];
-}
-```
-
-### useAuthStore
-
-```typescript
-interface AuthState {
-  user: User | null;
-  status: 'loading' | 'authenticated' | 'guest';
-  error: string | null;
+  pools: Map<string, Board[]>;
+  isPoolsBuilt: boolean;
 }
 ```
 
@@ -513,13 +451,21 @@ interface AuthState {
 interface SimulationState {
   isRunning: boolean;
   progress: number;
-  mode: 'stack' | 'compare';
   results: SimulationResult[];
-  compareResults: SimulationResult[][];
 }
 ```
 
-### useTemplateStore
+### useAuthStore（P3 實作）
+
+```typescript
+interface AuthState {
+  user: User | null;
+  status: 'loading' | 'authenticated' | 'guest';
+  error: string | null;
+}
+```
+
+### useTemplateStore（P3 實作）
 
 ```typescript
 interface TemplateState {

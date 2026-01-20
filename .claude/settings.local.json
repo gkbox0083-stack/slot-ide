@@ -3,7 +3,10 @@
     "allow": [
       "Bash(cd:*)",
       "Bash(tree:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(dir /s /b)"
     ]
   }
 }

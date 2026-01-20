@@ -498,21 +498,22 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
 
           {/* Reels 容器（z-index: 2） */}
           <div style={reelsContainerStyle}>
-            {board.reels.map((reelSymbols, reelIndex) => (
+            {board.reels.map((reelSymbols, reelIdx) => (
               <Reel
-                key={reelIndex}
+                key={reelIdx}
                 symbols={reelSymbols}
-                previousSymbols={prevReelsRef.current?.[reelIndex]}
+                previousSymbols={prevReelsRef.current?.[reelIdx]}
                 availableSymbols={availableSymbols}
                 symbolWeights={symbolWeights}
                 assets={assets}
                 animation={visual.animation}
+                reelIndex={reelIdx}
                 symbolSize={symbolSize}
                 symbolScale={visual.layout.symbolScale}
                 rows={board.rows}
-                state={reelStates[reelIndex]}
-                highlightedRows={getHighlightedRows(reelIndex)}
-                onStopped={() => handleReelStopped(reelIndex)}
+                state={reelStates[reelIdx]}
+                highlightedRows={getHighlightedRows(reelIdx)}
+                onStopped={() => handleReelStopped(reelIdx)}
               />
             ))}
           </div>

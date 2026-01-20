@@ -1,5 +1,13 @@
 # P2-09 Free Spin 觸發修復
 
+> **⚠️ 已過時 (DEPRECATED)**
+>
+> 此任務文件已於 V3 簡化版中標記為過時。
+> V3 版本移除了 Free Spin 機制，改為 Scatter 直接賦值模式。
+> 保留此文件僅供歷史參考。
+
+---
+
 ## 目標 (Objective)
 
 修復 Free Spin 觸發邏輯，使 Scatter 數量達到門檻時正確觸發 Free Spin 模式，包括：
