@@ -44,6 +44,7 @@
 
 /* Custom component styles */
 @layer components {
+
   /* Panel styles */
   .panel {
     @apply bg-white dark:bg-surface-800 rounded-lg shadow-panel dark:shadow-panel-dark;
@@ -143,6 +144,52 @@
     @apply scrollbar-thin scrollbar-thumb-surface-300 dark:scrollbar-thumb-surface-600;
     @apply scrollbar-track-transparent;
   }
+
+  /* Dashboard Page styles */
+  .dashboard-page {
+    @apply min-h-screen bg-surface-900 text-surface-50;
+  }
+
+  .dashboard-page.guest {
+    @apply flex items-center justify-center;
+  }
+
+  .guest-welcome {
+    @apply text-center p-8;
+  }
+
+  .dashboard-page.loading {
+    @apply flex items-center justify-center;
+  }
+
+  .loading-spinner {
+    @apply text-surface-400;
+  }
+
+  /* Guest Banner styles */
+  .guest-banner {
+    @apply flex items-center justify-center gap-4 py-2 px-4;
+    @apply text-sm text-white shrink-0;
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+  }
+
+  .guest-banner-text {
+    @apply text-white/90;
+  }
+
+  .guest-banner-btn {
+    @apply px-3 py-1 bg-white text-surface-900 rounded font-semibold text-sm;
+    @apply hover:bg-surface-100 transition-colors;
+  }
+
+  /* Guest restricted button styles */
+  .guest-restricted {
+    @apply opacity-70;
+  }
+
+  .lock-icon {
+    @apply ml-1 text-xs;
+  }
 }
 
 /* Custom utilities */
@@ -151,4 +198,3 @@
     text-wrap: balance;
   }
 }
-

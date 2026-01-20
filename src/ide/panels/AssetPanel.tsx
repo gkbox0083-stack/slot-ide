@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameConfigStore } from '../../store/useGameConfigStore.js';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { SymbolId } from '../../types/board.js';
 import { fileToDataUrl, saveSymbolImage, removeSymbolImage, saveOtherAsset, removeOtherAsset, clearAssets, loadAssets } from '../../utils/index.js';
+import { uploadImage } from '../../firebase/storage';
 
 /**
  * AssetPanel 素材上傳面板
@@ -17,7 +19,9 @@ export function AssetPanel() {
     clearAllAssets,
     symbols
   } = useGameConfigStore();
+  const { user } = useAuthStore();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // 頁面載入時從 localStorage 讀取素材
   useEffect(() => {
@@ -43,10 +47,27 @@ export function AssetPanel() {
     if (!file) return;
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      saveSymbolImage(symbolId, dataUrl);
-      setSymbolImage(symbolId, dataUrl);
+      // 如果用戶已登入，上傳到 Firebase Storage
+      if (user) {
+        const url = await uploadImage(
+          user.uid,
+          file,
+          (progress) => {
+            setUploadProgress(progress.progress);
+          }
+        );
+        saveSymbolImage(symbolId, url);
+        setSymbolImage(symbolId, url);
+        setUploadProgress(null);
+      } else {
+        // 訪客模式：使用 Data URL（localStorage）
+        const dataUrl = await fileToDataUrl(file);
+        saveSymbolImage(symbolId, dataUrl);
+        setSymbolImage(symbolId, dataUrl);
+      }
     } catch (error) {
+      console.error('上傳失敗:', error);
+      setUploadProgress(null);
       alert(`上傳失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
     }
   };
@@ -72,10 +93,27 @@ export function AssetPanel() {
     if (!file) return;
 
     try {
-      const dataUrl = await fileToDataUrl(file);
-      saveOtherAsset(key, dataUrl);
-      setOtherAsset(key, dataUrl);
+      // 如果用戶已登入，上傳到 Firebase Storage
+      if (user) {
+        const url = await uploadImage(
+          user.uid,
+          file,
+          (progress) => {
+            setUploadProgress(progress.progress);
+          }
+        );
+        saveOtherAsset(key, url);
+        setOtherAsset(key, url);
+        setUploadProgress(null);
+      } else {
+        // 訪客模式：使用 Data URL（localStorage）
+        const dataUrl = await fileToDataUrl(file);
+        saveOtherAsset(key, dataUrl);
+        setOtherAsset(key, dataUrl);
+      }
     } catch (error) {
+      console.error('上傳失敗:', error);
+      setUploadProgress(null);
       alert(`上傳失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
     }
   };
@@ -147,6 +185,23 @@ export function AssetPanel() {
           <span>↺</span> 全部重置
         </button>
       </div>
+
+      {/* 上傳進度顯示 */}
+      {uploadProgress !== null && (
+        <div className="mb-4 p-3 bg-surface-800 border border-surface-700 rounded">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 bg-surface-700 rounded overflow-hidden">
+              <div
+                className="h-full bg-primary-500 transition-all duration-200"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+            <span className="text-xs text-surface-300 font-medium min-w-[3rem] text-right">
+              {Math.round(uploadProgress)}%
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Symbol 圖片上傳區 */}
       <div className="mb-6 p-4 bg-surface-900 border border-surface-700 rounded shadow-sm">

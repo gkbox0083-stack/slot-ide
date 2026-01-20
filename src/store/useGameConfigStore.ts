@@ -91,6 +91,18 @@ export interface GameConfigActions {
 
   // 重置
   resetToDefaults: () => void;
+
+  // 從模板載入配置
+  loadFromTemplate: (config: {
+    gameName: string;
+    baseBet: number;
+    boardConfig: BoardConfig;
+    symbols: SymbolDefinition[];
+    outcomeConfig: Outcome[];
+    linesConfig: LinesConfig;
+    visualConfig: VisualConfig;
+    assets: AssetsPatch;
+  }) => void;
 }
 
 /**
@@ -347,6 +359,20 @@ export const useGameConfigStore = create<GameConfigState & GameConfigActions>()(
 
       // 重置
       resetToDefaults: () => set(initialState),
+
+      // 從模板載入配置
+      loadFromTemplate: (config) => set({
+        gameName: config.gameName,
+        baseBet: config.baseBet,
+        boardConfig: config.boardConfig,
+        symbols: config.symbols,
+        outcomes: config.outcomeConfig,
+        linesConfig: config.linesConfig,
+        visualConfig: config.visualConfig,
+        assets: config.assets,
+        pools: new Map(),
+        isPoolsBuilt: false,
+      }),
     }),
     {
       name: 'slot-ide-game-config-v3', // 新的 storage key 避免衝突

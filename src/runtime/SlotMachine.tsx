@@ -120,10 +120,15 @@ export const SlotMachine = forwardRef<SlotMachineRef, SlotMachineProps>(
       setWinningLineDisplay(null);
 
       // 依序停輪
+      const spinDuration = visual.animation.spinDuration ?? 2000;  // 確保有預設值
+      const reelStopDelay = visual.animation.reelStopDelay ?? 200;  // 確保有預設值
+      console.log('[SlotMachine] startSpin - spinDuration:', spinDuration, 'reelStopDelay:', reelStopDelay);
       for (let reelIndex = 0; reelIndex < 5; reelIndex++) {
-        const delay = visual.animation.spinDuration + (visual.animation.reelStopDelay * reelIndex);
+        const delay = spinDuration + (reelStopDelay * reelIndex);
+        console.log(`[SlotMachine] Reel ${reelIndex} will stop at ${delay}ms`);
 
         const timer = window.setTimeout(() => {
+          console.log(`[SlotMachine] Reel ${reelIndex} stopping now`);
           setReelStates((prev) => {
             const newStates = [...prev];
             newStates[reelIndex] = 'stopping';

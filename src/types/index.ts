@@ -25,3 +25,6 @@ export type { VisualConfig, AssetsPatch } from './visual.js';
 
 // SpinPacket（V3 簡化版）
 export type { GameMode, WinningLine, SettlementMeta, SpinPacket } from './spin-packet.js';
+
+// Template
+export type { Template, TemplateInput } from './template.js';

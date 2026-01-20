@@ -280,15 +280,24 @@ export function Reel({
     // 計算總滾動距離
     const totalScrollDistance = Math.abs(currentPos - finalTargetOffset);
 
+    console.log(`[Reel ${_reelIndex}] handleStopTrigger:`, {
+      spinningSpeed,
+      currentPos,
+      targetOffset,
+      finalTargetOffset,
+      totalScrollDistance,
+    });
+
     // CSS transition 能處理的最大滾動距離（超過這個值需要橋接動畫）
     const maxCssScroll = symbolHeight * 5;  // 500px
 
     // cubic-bezier 參數
+    // 移除內建基礎值，完全由 easeStrength 控制
     const p1x = 0.1;
-    const p1y = 0.5 + (animation.easeStrength * 0.3);
+    const p1y = animation.easeStrength * 0.8;  // 移除 0.5 基礎值，改為純粹由 easeStrength 控制
     const p2x = 0.2 + (animation.bounceStrength * 0.1);
     const p2y = 1 + (animation.bounceStrength * 0.6);
-    const bezierInitialSlope = p1y / p1x;
+    const bezierInitialSlope = p1y > 0 ? p1y / p1x : 1;  // 防止除以零
 
     // 啟動 CSS transition 的函數
     const startCssTransition = (fromPos: number, toPos: number, fromSpeed: number) => {
@@ -296,13 +305,15 @@ export function Reel({
 
       // 動態計算時長，確保初始速度匹配
       let stopDuration: number;
-      if (fromSpeed > 0 && cssScrollDistance > 0) {
+      if (fromSpeed > 0 && cssScrollDistance > 0 && bezierInitialSlope > 0) {
         stopDuration = (cssScrollDistance * bezierInitialSlope) / (fromSpeed * 1000);
       } else {
-        stopDuration = 0.5 + (animation.easeStrength * 1.0);
+        stopDuration = 0.3 + (animation.easeStrength * 0.5);  // 降低基礎值和影響係數
       }
 
       const bezierCurve = `cubic-bezier(${p1x.toFixed(3)}, ${p1y.toFixed(3)}, ${p2x.toFixed(3)}, ${p2y.toFixed(3)})`;
+
+      console.log(`[Reel ${_reelIndex}] CSS transition: duration=${stopDuration.toFixed(3)}s`);
 
       setIsStopping(false);
       setOffset(fromPos);
@@ -314,14 +325,24 @@ export function Reel({
       });
     };
 
+    // 根據滾輪索引計算額外滾動距離，用於補償信號時間差
+    // 這確保後面的滾輪需要更長的桥接動畫時間，從而更晚開始 CSS transition
+    const reelStopDelay = animation.reelStopDelay ?? 200;
+    const extraDistancePerReel = spinningSpeed * reelStopDelay;  // 每個索引增加的額外距離
+    const indexExtraDistance = _reelIndex * extraDistancePerReel;
+
     // 判斷是否需要橋接動畫
     if (totalScrollDistance <= maxCssScroll) {
       // 滾動距離在合理範圍內，直接使用 CSS transition
+      console.log(`[Reel ${_reelIndex}] Using CSS transition (distance: ${totalScrollDistance}px)`);
       startCssTransition(currentPos, finalTargetOffset, spinningSpeed);
     } else {
       // 滾動距離太大，使用橋接動畫先滾動到接近目標的位置
-      // 橋接動畫結束位置：finalTargetOffset + maxCssScroll（留 500px 給 CSS transition）
-      const bridgeEndPos = finalTargetOffset + maxCssScroll;
+      // 橋接動畫結束位置：finalTargetOffset + maxCssScroll + indexExtraDistance
+      // indexExtraDistance 讓後面的滾輪多滾動一段距離，確保依序停輪
+      const bridgeEndPos = finalTargetOffset + maxCssScroll + indexExtraDistance;
+
+      console.log(`[Reel ${_reelIndex}] Using bridge animation, extraDistance: ${indexExtraDistance}px, bridgeEndPos: ${bridgeEndPos}`);
 
       const bridgeSpeed = spinningSpeed;
       let bridgeStartTime = performance.now();
@@ -350,7 +371,7 @@ export function Reel({
       // 開始橋接動畫
       requestRef.current = requestAnimationFrame(bridgeAnimate);
     }
-  }, [animation.easeStrength, animation.bounceStrength, symbolHeight]);
+  }, [animation.easeStrength, animation.bounceStrength, animation.reelStopDelay, symbolHeight, _reelIndex]);
 
   /**
    * 處理 transition 結束
@@ -378,12 +399,14 @@ export function Reel({
 
     if (state === 'spinning' && prevState !== 'spinning') {
       // 進入 spinning 狀態
+      console.log(`[Reel ${_reelIndex}] State: spinning`);
       setIsStopping(false);
       setTransitionStyle('none');
       startSpin();
 
     } else if (state === 'stopping' && prevState === 'spinning') {
       // 從 spinning 進入 stopping 狀態
+      console.log(`[Reel ${_reelIndex}] State: stopping (from spinning)`);
       handleStopTrigger();
 
     } else if (state === 'stopped') {

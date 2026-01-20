@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useSimulationStore } from '../../store/useSimulationStore.js';
+import { useGuestMode } from '../../hooks/useGuestMode.js';
 
 import type { SimulationStats } from '../../engine/rtp-calculator.js';
 
@@ -9,9 +10,16 @@ import type { SimulationStats } from '../../engine/rtp-calculator.js';
  */
 export function StatisticsPanelV2() {
   const { results, balanceHistory } = useSimulationStore();
+  const { isGuest, requireAuth } = useGuestMode();
 
   const handleExportCSV = () => {
     if (results.length === 0) return;
+
+    // Check authentication before exporting
+    if (isGuest) {
+      requireAuth('Export CSV', () => {});
+      return;
+    }
 
     // 計算累計統計（V3 簡化版）
     const total = results.reduce((acc, r) => ({
@@ -85,9 +93,10 @@ export function StatisticsPanelV2() {
         <button
           onClick={handleExportCSV}
           disabled={results.length === 0}
-          className="px-4 py-2 bg-surface-700 text-surface-300 text-sm rounded-lg hover:bg-surface-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className={`px-4 py-2 bg-surface-700 text-surface-300 text-sm rounded-lg hover:bg-surface-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${isGuest ? 'guest-restricted' : ''}`}
+          title={isGuest ? 'Log in to use this feature' : ''}
         >
-          📥 匯出 CSV
+          📥 Export CSV {isGuest && <span className="lock-icon">🔒</span>}
         </button>
       </div>
     </div>

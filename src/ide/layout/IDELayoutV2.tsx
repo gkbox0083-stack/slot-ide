@@ -7,6 +7,8 @@ import { LeftSidebar } from './LeftSidebar.js';
 import { GameControlV2 } from './GameControlV2.js';
 import { GameControlBar } from './GameControlBar.js';
 import { StatisticsPanelV2 } from './StatisticsPanelV2.js';
+import { UserArea } from '../../components/UserArea.js';
+import { GuestBanner } from '../../components/GuestBanner.js';
 
 /**
  * 生成預設展示用 SpinPacket（無需執行 spin）
@@ -132,6 +134,9 @@ export function IDELayoutV2() {
 
   return (
     <div className="flex flex-col h-screen bg-surface-950 text-white overflow-hidden">
+      {/* Guest Banner */}
+      <GuestBanner />
+
       {/* Header */}
       <header className="h-12 px-4 flex items-center justify-between bg-surface-900 border-b border-surface-700 shrink-0">
         <div className="flex items-center gap-3">
@@ -144,10 +149,8 @@ export function IDELayoutV2() {
           <span className="text-sm text-surface-400">
             {gameName || '未命名專案'}
           </span>
-          {/* Phase 3 實作：用戶區域 */}
-          <div className="w-8 h-8 rounded-full bg-surface-700 flex items-center justify-center text-sm">
-            👤
-          </div>
+          {/* 用戶區域 */}
+          <UserArea />
         </div>
       </header>
 
