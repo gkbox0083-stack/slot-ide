@@ -1,10 +1,3 @@
-# slot-ide V2 驗收清單（Acceptance Checklist）
-
-本文件提供每個 Phase 的驗收清單，完成後逐項打勾。
-**所有項目通過後，才能進入 P0 Gate。**
-
----
-
 ## 使用方式
 
 1. 複製對應 Phase 的清單
@@ -17,21 +10,21 @@
 ## Phase 0：文件更新
 
 ### 規則文件
-- [ ] `.cursor/rules/rule.mdc` 已更新（V2 約束）
-- [ ] `README_ARCHITECTURE.md` 已更新（型別定義、雙層機率模型）
-- [ ] `AI_GUIDE.md` 已更新（V2 功能說明）
-- [ ] `P0_GATE.md` 已更新（V2 檢查項目）
-- [ ] `PHASES.md` 已更新（V2 階段規劃）
-- [ ] `FOLDER_GUIDE.md` 已更新（新資料夾說明）
-- [ ] `CHECKLIST.md` 已更新（本文件）
+- [x] `.cursor/rules/rule.mdc` 已更新（V2 約束）
+- [x] `README_ARCHITECTURE.md` 已更新（型別定義、雙層機率模型）
+- [x] `AI_GUIDE.md` 已更新（V2 功能說明）
+- [x] `P0_GATE.md` 已更新（V2 檢查項目）
+- [x] `PHASES.md` 已更新（V2 階段規劃）
+- [x] `FOLDER_GUIDE.md` 已更新（新資料夾說明）
+- [x] `CHECKLIST.md` 已更新（本文件）
 
 ### 任務文件
-- [ ] `prompts/` 資料夾已建立
+- [x] `prompts/` 資料夾已建立
 - [ ] 所有 Phase 的任務文件已生成
 - [ ] `prompts/README.md` 任務索引已建立
 
 ### PRD
-- [ ] `PRD_SLOT_IDE_V2.md` Auto Spin 功能已更新
+- [x] `PRD_SLOT_IDE_V2.md` Auto Spin 功能已更新
 
 ---
 
@@ -86,7 +79,7 @@
 ### P1-07：RTP Calculator
 - [ ] NG RTP 正確計算
 - [ ] FG RTP 正確計算
-- [ ] 總 RTP = NG RTP + FG RTP 貢獻
+- [ ] 總 RTP = NG RTP + FG RTP 貢換
 - [ ] FG 觸發機率正確計算
 
 ### 數據驗證
@@ -133,7 +126,7 @@
 ### P2-07：Pay Lines 視覺化編輯器
 - [ ] 盤面格子顯示
 - [ ] 點擊設定線路
-- [ ] 拖拉調整線路
+- [ ] 點選設定線路點
 - [ ] 新增/刪除線路
 - [ ] 最多 50 條線限制
 
@@ -218,12 +211,20 @@
 
 ---
 
-## 通用檢查（每個 Phase 結束時）
+## 通用檢查（P0 Gate）
 
-- [ ] 只修改了指定範圍的檔案
-- [ ] diff 最小化
+### 架構不可變條件
+- [ ] 只有一個 Vite + React App
+- [ ] 無 iframe
+- [ ] 無 postMessage
+- [ ] 只有 Math Engine 有亂數邏輯
+- [ ] SpinPacket 是唯一資料介面
+- [ ] Runtime 不生成盤面、不結算
+
+### 程式碼品質
 - [ ] 無新增 `any` 型別
-- [ ] 無新增 TODO hack
+- [ ] diff 最小化
+- [ ] 無遺留 TODO hack
 - [ ] `npm run build` 成功
 - [ ] Wild 邏輯只在 settlement.ts
 - [ ] Free Spin 狀態只在 useFreeSpinStore.ts
